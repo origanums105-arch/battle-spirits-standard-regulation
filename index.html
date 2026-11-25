@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BS STANDARD オンライン対戦シミュレーター</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #334155; --border: #475569;
+    --text: #f8fafc; --muted: #94a3b8; --accent: #3b82f6; --danger: #ef4444;
+    --success: #10b981; --warn: #f59e0b;
+    --red: #dc2626; --green: #16a34a; --white: #e2e8f0; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.4; overflow-x: hidden; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 6px 10px; font-weight: 600; font-size: 12px; color: #fff; background: var(--panel2); transition: opacity .15s; touch-action: manipulation; }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); }
+  .btn-success { background: var(--success); }
+  .btn-danger { background: var(--danger); }
+  .btn-warn { background: var(--warn); color: #000; }
+  input, select, textarea { background: #0f172a; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  .hidden { display: none !important; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #020617; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .badge-gold { background: var(--warn); color: #000; }
+  .badge-dark { background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+  .badge-off { background: #7c2d12; color: #fed7aa; }
+  .nav-btns { display: flex; gap: 6px; }
+
+  .container { max-width: 960px; margin: 16px auto; padding: 0 12px; }
+  .card-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .step-bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); align-items: center; }
+  .step-item { padding: 4px 8px; border-radius: 4px; font-size: 11px; background: var(--bg); color: var(--muted); border: 1px solid transparent; }
+  .step-item.active { background: var(--accent); color: #fff; font-weight: 700; }
+  .step-item.skip { text-decoration: line-through; opacity: 0.45; }
+
+  .board-wrap { display: grid; grid-template-columns: 1fr 270px; gap: 8px; padding: 8px; max-width: 1440px; margin: 0 auto; }
+  @media (max-width: 900px) { .board-wrap { grid-template-columns: 1fr; } }
+
+  .zone-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+  .zone-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .stat-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill { background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .pill strong { color: #38bdf8; }
+
+  .field-grid { display: flex; flex-wrap: wrap; gap: 8px; min-height: 115px; align-items: flex-start; }
+  .hand-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; min-height: 120px; -webkit-overflow-scrolling: touch; }
+
+  .game-card { width: 124px; min-width: 124px; background: #0f172a; border: 2px solid var(--border); border-radius: 8px; padding: 5px; position: relative; transition: transform .15s; user-select: none; }
+  .game-card.exhausted { transform: rotate(90deg); margin: 18px 16px; border-color: var(--warn); }
+  .game-card.heavy { transform: rotate(180deg); border-color: var(--danger); }
+  .attr-赤 { border-top: 5px solid var(--red); }
+  .attr-白 { border-top: 5px solid var(--white); }
+  .attr-緑 { border-top: 5px solid var(--green); }
+  .attr-青 { border-top: 5px solid var(--blue); }
+
+  .card-img-box { width: 100%; height: 82px; background: #1e293b; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; cursor: pointer; }
+  .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+  .card-placeholder { font-size: 10px; color: var(--muted); text-align: center; padding: 4px; }
+  .card-title { font-weight: 700; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card-bp { font-size: 11px; font-weight: 700; color: #fbbf24; margin-top: 2px; }
+  .card-ctrls { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+  .card-ctrls button { padding: 3px 5px; font-size: 10px; flex: 1; }
+
+  .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+  .db-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .db-thumb { width: 100%; height: 115px; background: var(--panel); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .db-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 12px; }
+  .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .log-box { height: 220px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font-size: 11px; }
+  .log-line { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="badge badge-gold">BS STANDARD</span>
+    <span>バトルスピリッツ スタンダード</span>
+    <span class="badge badge-dark">26RSD01赤 / 26RSD04白</span>
+    <span id="netStatus" class="badge badge-off">ソロ / ローカルモード</span>
+  </div>
+  <div class="nav-btns">
+    <button class="btn-primary" onclick="showTab('lobby')">ロビー / 対戦</button>
+    <button onclick="showTab('deck')">デッキ構築 / カード画像</button>
+  </div>
+</header>
+
+<div id="view-lobby" class="container">
+  <div class="card-box">
+    <h2 style="color:#fbbf24; margin-bottom:4px;">スタンダード対戦ルーム設定</h2>
+    <p style="color:var(--muted); font-size:12px; margin-bottom:12px;">スピリット・ネクサス・マジックの3種構成 / 8ステップ制 / 《真界放》・EX軽減対応</p>
+
+    <div style="background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+      <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">使用デッキ選択（40枚以上・同名3枚まで）</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select id="deckSelect" style="flex:1; min-width:220px;"></select>
+        <button onclick="showTab('deck')">デッキ編集・画像設定</button>
+        <button class="btn-danger" onclick="forceResetDecks()">デッキ初期化</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#38bdf8; margin-bottom:4px;">1人用テストモード（ひとり回し）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">自分と相手（赤デッキ vs 白デッキなど）の両方の盤面を操作してデバッグ・練習を行います。</p>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px;">相手デッキ:</span>
+          <select id="cpuDeckSelect" style="flex:1;"></select>
+        </div>
+        <button class="btn-warn" style="width:100%; padding:10px;" onclick="startSoloGame()">1人用テストモード起動</button>
+      </div>
+
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#34d399; margin-bottom:4px;">同一端末2人対戦（対面プレイ）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">手番ごとにプレイヤー視点を切り替えて1台のPC・タブレットで対戦します。</p>
+        <button class="btn-success" style="width:100%; padding:10px; margin-top:26px;" onclick="startSoloGame(true)">対面2人モード起動</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="view-game" class="hidden">
+  <div class="step-bar" id="stepBar"></div>
+  <div class="board-wrap">
+    <div>
+      <div class="zone-box" style="border-color:#475569;">
+        <div class="zone-header">
+          <div>
+            <strong id="oppLabel">相手プレイヤー (P2)</strong>
+            <span id="oppDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p2Life">5</strong> <button onclick="modStat('p2','life',-1)">-1</button><button onclick="modStat('p2','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p2Res">3</strong> <button onclick="modStat('p2','res',-1)">-1</button><button onclick="modStat('p2','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p2Soul">1</strong> <button onclick="toggleSoulReserve('p2')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p2Trash">0</strong> <button onclick="openTrashModal('p2')">見る</button></span>
+            <span class="pill">山札: <strong id="p2Deck">36</strong> <button onclick="drawCard('p2')">ドロー</button></span>
+            <span class="pill">手札: <strong id="p2HandCount">4</strong>枚</span>
+          </div>
+        </div>
+        <div class="field-grid" id="p2Field"></div>
+      </div>
+
+      <div class="zone-box" style="border-color:#3b82f6;">
+        <div class="zone-header">
+          <div>
+            <strong style="color:#60a5fa;" id="selfLabel">自分プレイヤー (P1)</strong>
+            <span id="selfDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p1Life">5</strong> <button onclick="modStat('p1','life',-1)">-1</button><button onclick="modStat('p1','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p1Res">3</strong> <button onclick="modStat('p1','res',-1)">-1</button><button onclick="modStat('p1','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p1Soul">1</strong> <button onclick="toggleSoulReserve('p1')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p1Trash">0</strong> <button onclick="openTrashModal('p1')">見る</button></span>
+            <span class="pill">除外: <strong id="p1Exile">0</strong></span>
+            <span class="pill">山札: <strong id="p1Deck">36</strong></span>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <button class="btn-primary" onclick="drawCard('p1')">ドロー (+1枚)</button>
+          <button class="btn-success" onclick="coreStep('p1')">コア (+1個)</button>
+          <button class="btn-warn" onclick="refreshStep('p1')">リフレッシュ (全回復&コア回収)</button>
+          <button id="mulliganBtn" onclick="doMulligan('p1')">引き直し (初回1回)</button>
+          <button onclick="switchControlSide()">操作視点切替 (P1⇔P2)</button>
+          <button class="btn-danger" onclick="endTurn()">ターン終了</button>
+        </div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">フィールド（スピリット / ネクサス）</div>
+        <div class="field-grid" id="p1Field" style="margin-bottom:10px;"></div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">手札（タップで召喚・使用 / 拡大）</div>
+        <div class="hand-scroll" id="p1Hand"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="zone-box">
+        <div class="zone-header">
+          <strong>ターン情報・行動ログ</strong>
+          <button onclick="showTab('lobby')">終了</button>
+        </div>
+        <div style="margin-bottom:8px; font-size:12px;">
+          ターン: <strong
