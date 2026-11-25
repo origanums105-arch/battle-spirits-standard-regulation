@@ -1,1666 +1,913 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>バトルスピリッツ スタンダード オンライン対戦 (軽量版)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <style>
-    /* Core i3-7100U / RAM 4GB / HD Graphics 620 最適化:
-       GPU負荷の高いblur・影・重いアニメーションを排除し、1366x768でスクロール不要のフラットUIを構築 */
-    body {
-      font-family: 'Noto Sans JP', sans-serif;
-      background-color: #0b1120;
-      color: #f1f5f9;
-      user-select: none;
-      overflow-x: hidden;
-    }
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BS STANDARD オンライン対戦シミュレーター</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #334155; --border: #475569;
+    --text: #f8fafc; --muted: #94a3b8; --accent: #3b82f6; --danger: #ef4444;
+    --success: #10b981; --warn: #f59e0b;
+    --red: #dc2626; --green: #16a34a; --white: #e2e8f0; --blue: #2563eb; --yellow: #eab308; --purple: #9333ea;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.4; overflow-x: hidden; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 6px 10px; font-weight: 600; font-size: 12px; color: #fff; background: var(--panel2); transition: opacity .15s; touch-action: manipulation; }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); }
+  .btn-success { background: var(--success); }
+  .btn-danger { background: var(--danger); }
+  .btn-warn { background: var(--warn); color: #000; }
+  input, select, textarea { background: #0f172a; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  .hidden { display: none !important; }
 
-    /* スピリット3状態: 回復(通常) / 疲労(横向き風傾き) / 重疲労(逆向き) */
-    .state-exhausted {
-      transform: rotate(10deg);
-      border-style: dashed !important;
-      opacity: 0.85;
-    }
-    .state-heavy-exhausted {
-      transform: rotate(180deg);
-      border-style: double !important;
-      opacity: 0.72;
-    }
+  /* Header */
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #020617; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .badge-gold { background: var(--warn); color: #000; }
+  .badge-dark { background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+  .badge-off { background: #7c2d12; color: #fed7aa; }
+  .nav-btns { display: flex; gap: 6px; }
 
-    /* 属性バッジ */
-    .attr-red { background-color: #dc2626; color: #fff; }
-    .attr-white { background-color: #e2e8f0; color: #0f172a; }
-    .attr-blue { background-color: #2563eb; color: #fff; }
-    .attr-purple { background-color: #7c3aed; color: #fff; }
-    .attr-green { background-color: #16a34a; color: #fff; }
-    .attr-yellow { background-color: #eab308; color: #0f172a; }
+  /* Lobby */
+  .container { max-width: 960px; margin: 16px auto; padding: 0 12px; }
+  .card-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
 
-    /* ソウルコア強調 */
-    .soul-core-badge {
-      background-color: #ea580c;
-      border: 1px solid #fde047;
-      color: #fff;
-    }
-  </style>
+  /* Game Board */
+  .step-bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); align-items: center; }
+  .step-item { padding: 4px 8px; border-radius: 4px; font-size: 11px; background: var(--bg); color: var(--muted); border: 1px solid transparent; }
+  .step-item.active { background: var(--accent); color: #fff; font-weight: 700; }
+  .step-item.skip { text-decoration: line-through; opacity: 0.45; }
+
+  .board-wrap { display: grid; grid-template-columns: 1fr 270px; gap: 8px; padding: 8px; max-width: 1440px; margin: 0 auto; }
+  @media (max-width: 900px) { .board-wrap { grid-template-columns: 1fr; } }
+
+  .zone-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+  .zone-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .stat-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill { background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .pill strong { color: #38bdf8; }
+
+  .field-grid { display: flex; flex-wrap: wrap; gap: 8px; min-height: 115px; align-items: flex-start; }
+  .hand-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; min-height: 120px; -webkit-overflow-scrolling: touch; }
+
+  /* Card UI */
+  .game-card { width: 124px; min-width: 124px; background: #0f172a; border: 2px solid var(--border); border-radius: 8px; padding: 5px; position: relative; transition: transform .15s; user-select: none; }
+  .game-card.exhausted { transform: rotate(90deg); margin: 18px 16px; border-color: var(--warn); }
+  .game-card.heavy { transform: rotate(180deg); border-color: var(--danger); }
+  .attr-赤 { border-top: 5px solid var(--red); }
+  .attr-白 { border-top: 5px solid var(--white); }
+  .attr-緑 { border-top: 5px solid var(--green); }
+  .attr-青 { border-top: 5px solid var(--blue); }
+
+  .card-img-box { width: 100%; height: 78px; background: #1e293b; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; cursor: pointer; }
+  .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+  .card-placeholder { font-size: 10px; color: var(--muted); text-align: center; padding: 4px; }
+  .card-title { font-weight: 700; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card-bp { font-size: 11px; font-weight: 700; color: #fbbf24; margin-top: 2px; }
+  .card-ctrls { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+  .card-ctrls button { padding: 3px 5px; font-size: 10px; flex: 1; }
+
+  /* Deck Builder */
+  .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+  .db-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .db-thumb { width: 100%; height: 110px; background: var(--panel); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .db-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* Modal */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 12px; }
+  .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .log-box { height: 220px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font-size: 11px; }
+  .log-line { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+</style>
 </head>
-<body class="h-screen flex flex-col text-xs overflow-hidden">
+<body>
 
-  <!-- トップヘッダー (超コンパクト) -->
-  <header class="bg-slate-900 border-b border-slate-700 px-3 py-1.5 flex items-center justify-between flex-shrink-0">
-    <div class="flex items-center gap-2">
-      <span class="bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded text-[11px] tracking-wider">BS STANDARD</span>
-      <h1 class="font-bold text-sm text-slate-100">バトルスピリッツ スタンダード オンライン対戦</h1>
-      <span class="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">Block A / 8ステップ制</span>
-      <span id="connectionStatus" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">初期化中...</span>
+<header>
+  <div class="brand">
+    <span class="badge badge-gold">BS STANDARD</span>
+    <span>バトルスピリッツ スタンダード</span>
+    <span class="badge badge-dark">26RSD01赤 / 26RSD04白</span>
+    <span id="netStatus" class="badge badge-off">ソロ / ローカルモード</span>
+  </div>
+  <div class="nav-btns">
+    <button class="btn-primary" onclick="showTab('lobby')">ロビー / 対戦</button>
+    <button onclick="showTab('deck')">デッキ構築 / カード画像</button>
+  </div>
+</header>
+
+<!-- LOBBY VIEW -->
+<div id="view-lobby" class="container">
+  <div class="card-box">
+    <h2 style="color:#fbbf24; margin-bottom:4px;">スタンダード対戦ルーム設定</h2>
+    <p style="color:var(--muted); font-size:12px; margin-bottom:12px;">スピリット・ネクサス・マジックの3種構成 / 8ステップ制 / 《真界放》・EX軽減対応</p>
+
+    <div style="background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+      <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">使用デッキ選択（40枚以上・同名3枚まで）</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select id="deckSelect" style="flex:1; min-width:220px;"></select>
+        <button onclick="showTab('deck')">デッキ編集・画像設定</button>
+      </div>
     </div>
-    <div class="flex items-center gap-1.5">
-      <button onclick="switchView('lobby')" id="navLobby" class="px-2.5 py-1 rounded bg-indigo-600 text-white font-bold text-xs">ロビー / 対戦</button>
-      <button onclick="switchView('deck')" id="navDeck" class="px-2.5 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700 text-xs">デッキ構築 / カード作成</button>
+
+    <div class="grid-2">
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#38bdf8; margin-bottom:4px;">1人用テストモード（ひとり回し）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">自分と相手（赤デッキ vs 白デッキなど）の両方の盤面を操作してデバッグ・練習を行います。</p>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px;">相手デッキ:</span>
+          <select id="cpuDeckSelect" style="flex:1;"></select>
+        </div>
+        <button class="btn-warn" style="width:100%; padding:10px;" onclick="startSoloGame()">1人用テストモード起動</button>
+      </div>
+
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#34d399; margin-bottom:4px;">同一端末2人対戦（対面プレイ）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">手番ごとにプレイヤー視点を切り替えて1台のPC・タブレットで対戦します。</p>
+        <button class="btn-success" style="width:100%; padding:10px; margin-top:26px;" onclick="startSoloGame(true)">対面2人モード起動</button>
+      </div>
     </div>
-  </header>
+  </div>
+</div>
 
-  <!-- トースト通知 (alert代替) -->
-  <div id="toastBox" class="fixed top-10 right-3 z-50 flex flex-col gap-1 pointer-events-none"></div>
+<!-- GAME VIEW -->
+<div id="view-game" class="hidden">
+  <div class="step-bar" id="stepBar"></div>
 
-  <!-- ==================== 1. ロビー画面 ==================== -->
-  <main id="viewLobby" class="flex-1 flex items-center justify-center p-3 overflow-y-auto">
-    <div class="w-full max-w-2xl bg-slate-800 border border-slate-700 rounded-lg p-5 space-y-4">
-      <div class="border-b border-slate-700 pb-2.5 flex justify-between items-center">
+  <div class="board-wrap">
+    <div>
+      <!-- OPPONENT ZONE -->
+      <div class="zone-box" style="border-color:#475569;">
+        <div class="zone-header">
+          <div>
+            <strong id="oppLabel">相手プレイヤー (P2)</strong>
+            <span id="oppDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p2Life">5</strong> <button onclick="modStat('p2','life',-1)">-1</button><button onclick="modStat('p2','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p2Res">3</strong> <button onclick="modStat('p2','res',-1)">-1</button><button onclick="modStat('p2','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p2Soul">1</strong> <button onclick="toggleSoulReserve('p2')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p2Trash">0</strong> <button onclick="openTrashModal('p2')">見る</button></span>
+            <span class="pill">山札: <strong id="p2Deck">36</strong> <button onclick="drawCard('p2')">ドロー</button></span>
+            <span class="pill">手札: <strong id="p2HandCount">4</strong>枚</span>
+          </div>
+        </div>
+        <div class="field-grid" id="p2Field"></div>
+      </div>
+
+      <!-- SELF ZONE -->
+      <div class="zone-box" style="border-color:#3b82f6;">
+        <div class="zone-header">
+          <div>
+            <strong style="color:#60a5fa;" id="selfLabel">自分プレイヤー (P1)</strong>
+            <span id="selfDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p1Life">5</strong> <button onclick="modStat('p1','life',-1)">-1</button><button onclick="modStat('p1','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p1Res">3</strong> <button onclick="modStat('p1','res',-1)">-1</button><button onclick="modStat('p1','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p1Soul">1</strong> <button onclick="toggleSoulReserve('p1')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p1Trash">0</strong> <button onclick="openTrashModal('p1')">見る</button></span>
+            <span class="pill">除外: <strong id="p1Exile">0</strong></span>
+            <span class="pill">山札: <strong id="p1Deck">36</strong></span>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <button class="btn-primary" onclick="drawCard('p1')">ドロー (+1枚)</button>
+          <button class="btn-success" onclick="coreStep('p1')">コア (+1個)</button>
+          <button class="btn-warn" onclick="refreshStep('p1')">リフレッシュ (全回復&コア回収)</button>
+          <button id="mulliganBtn" onclick="doMulligan('p1')">引き直し (初回1回)</button>
+          <button onclick="switchControlSide()">操作視点切替 (P1⇔P2)</button>
+          <button class="btn-danger" onclick="endTurn()">ターン終了</button>
+        </div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">フィールド（スピリット / ネクサス）</div>
+        <div class="field-grid" id="p1Field" style="margin-bottom:10px;"></div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">手札（タップで召喚・使用 / 拡大）</div>
+        <div class="hand-scroll" id="p1Hand"></div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR LOG -->
+    <div>
+      <div class="zone-box">
+        <div class="zone-header">
+          <strong>ターン情報・行動ログ</strong>
+          <button onclick="showTab('lobby')">終了</button>
+        </div>
+        <div style="margin-bottom:8px; font-size:12px;">
+          ターン: <strong id="turnNum">1</strong> | 手番: <strong id="turnSide">P1 (先攻)</strong>
+        </div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DECK BUILDER & IMAGE VIEW -->
+<div id="view-deck" class="container hidden">
+  <div class="card-box">
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
+      <h2>デッキ構築 & カード画像設定</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        <label class="btn-primary" style="cursor:pointer; display:inline-block;">
+          画像ファイル一括読込
+          <input type="file" id="bulkImgInput" accept="image/*" multiple class="hidden" onchange="handleBulkImages(event)">
+        </label>
+        <button class="btn-success" onclick="exportData()">JSON出力(画像込)</button>
+        <label style="background:var(--panel2); padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">
+          JSON読込
+          <input type="file" accept=".json" class="hidden" onchange="importData(event)">
+        </label>
+        <button class="btn-danger" onclick="resetToDefault()">初期デッキ(赤・白)に戻す</button>
+      </div>
+    </div>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+      ※公式サイト等から保存した画像ファイル名（例：<code>26RSD01-001.jpg</code> や <code>ムーシャッコ.png</code>）を「画像ファイル一括読込」でまとめて選択すると自動反映されます。
+    </p>
+
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:10px; border-radius:8px; margin-bottom:10px;">
+      <span>編集デッキ:</span>
+      <select id="editDeckSelect" onchange="renderDeckBuilder()"></select>
+      <span id="deckCountBadge" class="badge badge-gold">40枚</span>
+      <button class="btn-primary" onclick="openNewCardModal()">＋ 新規カード追加</button>
+    </div>
+
+    <div class="db-grid" id="dbGrid"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modalBg" class="modal-bg hidden" onclick="if(event.target===this) closeModal()">
+  <div class="modal-box" id="modalContent"></div>
+</div>
+
+<script>
+const STEPS = ["スタート", "コア", "ドロー", "リフレッシュ", "第1メイン", "アタック", "第2メイン", "エンド"];
+
+const DEFAULT_CARDS = [
+  // [26RSD01] バトスピエントリーデッキ 赫焔ノ風牙 (赤)
+  { id:"26RSD01-001", name:"ムーシャッコ", type:"スピリット", attr:"赤", cost:1, red:1, white:0, bp1:2000, bp2:4000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、BP4000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-002", name:"ゲン＝ボー", type:"スピリット", attr:"赤", cost:2, red:1, white:0, bp1:3000, bp2:5000, lv2c:2, keyword:"", text:"召喚時：自分のデッキの上から3枚オープンし、系統：「風牙」を持つカード1枚を手札に加える。" },
+  { id:"26RSD01-003", name:"ロワミーク", type:"スピリット", attr:"赤", cost:2, red:2, white:0, bp1:3000, bp2:6000, lv2c:3, keyword:"", text:"Lv1・Lv2：自分の赤のネクサスがある間、このスピリットをBP+2000する。" },
+  { id:"26RSD01-004", name:"ハーリア", type:"スピリット", attr:"赤", cost:3, red:2, white:0, bp1:4000, bp2:7000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、自分はデッキから1枚ドローする。" },
+  { id:"26RSD01-005", name:"グン＝ガタ", type:"スピリット", attr:"赤", cost:3, red:2, white:0, bp1:4000, bp2:6000, lv2c:2, keyword:"EX軽減", text:"トラッシュにあるこのカードはEX軽減シンボル(赤)として除外できる。" },
+  { id:"26RSD01-006", name:"キュペル", type:"スピリット", attr:"赤", cost:4, red:2, white:0, bp1:5000, bp2:8000, lv2c:3, keyword:"", text:"召喚時：BP5000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-007", name:"グライファー", type:"スピリット", attr:"赤", cost:4, red:3, white:0, bp1:5000, bp2:9000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、相手のネクサス1つを破壊できる。" },
+  { id:"26RSD01-008", name:"セルタリウス", type:"スピリット", attr:"赤", cost:5, red:3, white:0, bp1:6000, bp2:10000, lv2c:3, keyword:"", text:"Lv2アタック時：BP7000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-009", name:"飛傑レウファルス", type:"スピリット", attr:"赤", cost:6, red:3, white:0, bp1:7000, bp2:12000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：このスピリットのアタック時、相手のライフのコア1個をリザーブに置く。" },
+  { id:"26RSD01-010", name:"最奥：風牙岩", type:"ネクサス", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:2, keyword:"真界放", text:"配置時：デッキから1枚ドロー。Lv2《真界放》：自分の赤スピリットすべてをBP+2000する。" },
+  { id:"26RSD01-011", name:"浮遊岩域", type:"ネクサス", attr:"赤", cost:2, red:1, white:0, bp1:0, bp2:0, lv2c:2, keyword:"EX軽減", text:"自分のアタックステップ開始時、自分のスピリット1体をBP+3000する。" },
+  { id:"26RSD01-012", name:"ブレイククロー", type:"マジック", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：BP6000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-013", name:"オフェリングドロー", type:"マジック", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:0, keyword:"EX軽減", text:"メイン：自分はデッキから2枚ドローする。" },
+  { id:"26RSD01-014", name:"フレイムハリケーン", type:"マジック", attr:"赤", cost:5, red:3, white:0, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：BP10000以下の相手スピリットすべてを破壊する。" },
+  { id:"26RSD01-X01", name:"飛赫レンシス", type:"スピリット", attr:"赤", cost:7, red:4, white:0, bp1:9000, bp2:15000, lv2c:3, keyword:"真界放", text:"【Xレア】《真界放》Lv2アタック時：BP12000以下の相手スピリット1体を破壊し、このスピリットは回復する。" },
+  { id:"26RSD01-X02", name:"飛剛アクライ", type:"スピリット", attr:"赤", cost:6, red:3, white:0, bp1:8000, bp2:13000, lv2c:3, keyword:"真界放", text:"【Xレア】召喚時：BP8000以下の相手スピリット2体を破壊する。《真界放》Lv2：ダブルシンボルを得る。" },
+
+  // [26RSD04] バトスピエントリーデッキ 白命ノ鉱人 (白)
+  { id:"26RSD04-001", name:"アトゥン", type:"スピリット", attr:"白", cost:1, red:0, white:1, bp1:2000, bp2:4000, lv2c:2, keyword:"", text:"Lv1・Lv2：相手のアタックステップ中、このスピリットをBP+2000する。" },
+  { id:"26RSD04-002", name:"ノンリル", type:"スピリット", attr:"白", cost:2, red:0, white:1, bp1:3000, bp2:5000, lv2c:2, keyword:"EX軽減", text:"召喚時：自分のデッキの上から3枚オープンし、系統：「鉱人」を持つカード1枚を手札に加える。" },
+  { id:"26RSD04-003", name:"アーシヌス", type:"スピリット", attr:"白", cost:2, red:0, white:2, bp1:3000, bp2:6000, lv2c:3, keyword:"", text:"ブロック時：このスピリットをBP+3000する。" },
+  { id:"26RSD04-004", name:"重爪フォークロアー", type:"スピリット", attr:"白", cost:3, red:0, white:2, bp1:4000, bp2:7000, lv2c:3, keyword:"", text:"Lv1・Lv2：このスピリットは相手の効果で破壊されない。" },
+  { id:"26RSD04-005", name:"チムニルガ", type:"スピリット", attr:"白", cost:3, red:0, white:2, bp1:4000, bp2:6000, lv2c:2, keyword:"EX軽減", text:"トラッシュにあるこのカードはEX軽減シンボル(白)として除外できる。" },
+  { id:"26RSD04-006", name:"ダビティ", type:"スピリット", attr:"白", cost:4, red:0, white:2, bp1:5000, bp2:8000, lv2c:3, keyword:"", text:"召喚時：相手のスピリット1体を手札に戻す。" },
+  { id:"26RSD04-007", name:"ジャンクス", type:"スピリット", attr:"白", cost:4, red:0, white:3, bp1:5000, bp2:9000, lv2c:3, keyword:"", text:"ブロック時：バトル終了時、このスピリットは回復する。" },
+  { id:"26RSD04-008", name:"豪腕アナトマ", type:"スピリット", attr:"白", cost:5, red:0, white:3, bp1:6000, bp2:10000, lv2c:3, keyword:"", text:"Lv2アタック/ブロック時：コスト5以下の相手スピリット1体を手札に戻す。" },
+  { id:"26RSD04-009", name:"石切平原", type:"ネクサス", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:2, keyword:"", text:"配置時：ボイドからコア1個をこのネクサスに置く。Lv2：自分の白スピリットすべてをBP+2000。" },
+  { id:"26RSD04-010", name:"最奥：白天平", type:"ネクサス", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:2, keyword:"EX軽減", text:"Lv1・Lv2：自分の白スピリットが相手の効果でフィールドを離れるとき、疲労させることで残せる。" },
+  { id:"26RSD04-011", name:"立石円陣", type:"ネクサス", attr:"白", cost:2, red:0, white:1, bp1:0, bp2:0, lv2c:2, keyword:"", text:"相手のアタックステップ中、自分の白スピリットすべてに【重装甲：赤/緑】を与える。" },
+  { id:"26RSD04-012", name:"ロックドリリング", type:"マジック", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：相手のスピリット1体を手札に戻す。" },
+  { id:"26RSD04-013", name:"ドリームローター", type:"マジック", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"EX軽減", text:"メイン：自分はデッキから2枚ドローし、手札1枚を破棄する。" },
+  { id:"26RSD04-014", name:"ディフェンシブゲート", type:"マジック", attr:"白", cost:4, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：このターンの間、自分のライフは相手のスピリットのアタックでは減らない。" },
+  { id:"26RSD04-X01", name:"陸舟マテンダー", type:"スピリット", attr:"白", cost:7, red:0, white:4, bp1:9000, bp2:15000, lv2c:3, keyword:"真界放", text:"【Xレア】《真界放》Lv2：アタック/ブロック時、相手のスピリット2体を手札に戻し、自分の白スピリット1体を回復させる。" },
+  { id:"26RSD04-X02", name:"真門官サヴァトマ", type:"スピリット", attr:"白", cost:6, red:0, white:3, bp1:8000, bp2:13000, lv2c:3, keyword:"", text:"【Xレア】召喚時：相手のスピリット/ネクサス合計2つを手札に戻す。Lv2：相手の効果を受けない。" }
+];
+
+const DEFAULT_DECKS = [
+  {
+    name: "【赤】バトスピエントリーデッキ 赫焔ノ風牙 [26RSD01]",
+    cards: {
+      "26RSD01-001":3, "26RSD01-002":3, "26RSD01-003":2, "26RSD01-004":3,
+      "26RSD01-005":3, "26RSD01-006":2, "26RSD01-007":2, "26RSD01-008":2,
+      "26RSD01-009":2, "26RSD01-010":3, "26RSD01-011":3, "26RSD01-012":3,
+      "26RSD01-013":3, "26RSD01-014":2, "26RSD01-X01":2, "26RSD01-X02":2
+    }
+  },
+  {
+    name: "【白】バトスピエントリーデッキ 白命ノ鉱人 [26RSD04]",
+    cards: {
+      "26RSD04-001":3, "26RSD04-002":3, "26RSD04-003":3, "26RSD04-004":2,
+      "26RSD04-005":3, "26RSD04-006":2, "26RSD04-007":2, "26RSD04-008":2,
+      "26RSD04-009":3, "26RSD04-010":3, "26RSD04-011":2, "26RSD04-012":3,
+      "26RSD04-013":3, "26RSD04-014":2, "26RSD04-X01":2, "26RSD04-X02":2
+    }
+  }
+];
+
+let cardDB = [];
+let decks = [];
+let cardImages = {}; // id -> dataURL
+let game = null;
+let viewSide = "p1"; // which side is displayed at bottom
+
+function initStorage() {
+  try {
+    const savedCards = localStorage.getItem("bs_std_cards_v2");
+    const savedDecks = localStorage.getItem("bs_std_decks_v2");
+    const savedImgs = localStorage.getItem("bs_std_imgs_v2");
+    cardDB = savedCards ? JSON.parse(savedCards) : JSON.parse(JSON.stringify(DEFAULT_CARDS));
+    decks = savedDecks ? JSON.parse(savedDecks) : JSON.parse(JSON.stringify(DEFAULT_DECKS));
+    cardImages = savedImgs ? JSON.parse(savedImgs) : {};
+  } catch(e) {
+    cardDB = JSON.parse(JSON.stringify(DEFAULT_CARDS));
+    decks = JSON.parse(JSON.stringify(DEFAULT_DECKS));
+    cardImages = {};
+  }
+  refreshDeckSelectors();
+}
+
+function saveStorage() {
+  try {
+    localStorage.setItem("bs_std_cards_v2", JSON.stringify(cardDB));
+    localStorage.setItem("bs_std_decks_v2", JSON.stringify(decks));
+    localStorage.setItem("bs_std_imgs_v2", JSON.stringify(cardImages));
+  } catch(e) {
+    alert("ブラウザの保存容量上限に達しました。画像枚数を減らすかJSON出力でバックアップしてください。");
+  }
+}
+
+function resetToDefault() {
+  if(!confirm("デッキとカード一覧を初期状態（26RSD01赤・26RSD04白）に戻しますか？")) return;
+  cardDB = JSON.parse(JSON.stringify(DEFAULT_CARDS));
+  decks = JSON.parse(JSON.stringify(DEFAULT_DECKS));
+  saveStorage();
+  refreshDeckSelectors();
+  renderDeckBuilder();
+}
+
+function showTab(tab) {
+  document.getElementById("view-lobby").classList.toggle("hidden", tab !== "lobby");
+  document.getElementById("view-game").classList.toggle("hidden", tab !== "game");
+  document.getElementById("view-deck").classList.toggle("hidden", tab !== "deck");
+  if(tab === "deck") renderDeckBuilder();
+}
+
+function refreshDeckSelectors() {
+  const s1 = document.getElementById("deckSelect");
+  const s2 = document.getElementById("cpuDeckSelect");
+  const s3 = document.getElementById("editDeckSelect");
+  [s1, s2, s3].forEach((sel, idx) => {
+    const prev = sel.value;
+    sel.innerHTML = "";
+    decks.forEach((d, i) => {
+      const cnt = Object.values(d.cards).reduce((a,b)=>a+b, 0);
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `${d.name} (${cnt}枚)`;
+      sel.appendChild(opt);
+    });
+    if(prev && sel.options[prev]) sel.value = prev;
+    else if(idx === 1 && decks.length > 1) sel.value = 1;
+  });
+}
+
+function buildDeckArray(deckObj) {
+  const arr = [];
+  Object.entries(deckObj.cards).forEach(([cid, count]) => {
+    const card = cardDB.find(c => c.id === cid);
+    if(card) {
+      for(let i=0; i<count; i++) arr.push({ ...card, uid: Math.random().toString(36).slice(2) });
+    }
+  });
+  for(let i=arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startSoloGame(passAndPlay = false) {
+  const d1 = decks[document.getElementById("deckSelect").value || 0];
+  const d2 = decks[document.getElementById("cpuDeckSelect").value || 0];
+  const deck1 = buildDeckArray(d1);
+  const deck2 = buildDeckArray(d2);
+
+  game = {
+    turn: 1,
+    active: "p1",
+    step: 0,
+    passAndPlay,
+    logs: ["対戦を開始しました（スタンダードレギュレーション）。"],
+    p1: { name: d1.name, life: 5, res: 3, soulRes: true, deck: deck1.slice(4), hand: deck1.slice(0,4), field: [], trash: [], exile: [], mulliganUsed: false },
+    p2: { name: d2.name, life: 5, res: 3, soulRes: true, deck: deck2.slice(4), hand: deck2.slice(0,4), field: [], trash: [], exile: [], mulliganUsed: false }
+  };
+  viewSide = "p1";
+  showTab("game");
+  renderGame();
+}
+
+function addLog(msg) {
+  game.logs.unshift(`[T${game.turn}] ${msg}`);
+  if(game.logs.length > 60) game.logs.pop();
+}
+
+function renderGame() {
+  if(!game) return;
+  const selfKey = viewSide;
+  const oppKey = viewSide === "p1" ? "p2" : "p1";
+  const self = game[selfKey];
+  const opp = game[oppKey];
+
+  // Step bar
+  const sb = document.getElementById("stepBar");
+  sb.innerHTML = "";
+  STEPS.forEach((st, idx) => {
+    const isSkip = (game.turn === 1 && (idx === 1 || idx === 5 || idx === 6));
+    const el = document.createElement("button");
+    el.className = "step-item" + (game.step === idx ? " active" : "") + (isSkip ? " skip" : "");
+    el.textContent = `${idx+1}.${st}`;
+    el.onclick = () => { game.step = idx; addLog(`ステップ変更: ${st}`); renderGame(); };
+    sb.appendChild(el);
+  });
+
+  document.getElementById("turnNum").textContent = game.turn;
+  document.getElementById("turnSide").textContent = `${game.active.toUpperCase()} (${game.turn===1?'先攻':'手番'})`;
+
+  document.getElementById("oppLabel").textContent = `相手 (${oppKey.toUpperCase()})`;
+  document.getElementById("oppDeckName").textContent = opp.name;
+  document.getElementById("p2Life").textContent = opp.life;
+  document.getElementById("p2Res").textContent = opp.res;
+  document.getElementById("p2Soul").textContent = opp.soulRes ? "1" : "0";
+  document.getElementById("p2Trash").textContent = opp.trash.length;
+  document.getElementById("p2Deck").textContent = opp.deck.length;
+  document.getElementById("p2HandCount").textContent = opp.hand.length;
+
+  document.getElementById("selfLabel").textContent = `自分 (${selfKey.toUpperCase()})`;
+  document.getElementById("selfDeckName").textContent = self.name;
+  document.getElementById("p1Life").textContent = self.life;
+  document.getElementById("p1Res").textContent = self.res;
+  document.getElementById("p1Soul").textContent = self.soulRes ? "1" : "0";
+  document.getElementById("p1Trash").textContent = self.trash.length;
+  document.getElementById("p1Exile").textContent = self.exile.length;
+  document.getElementById("p1Deck").textContent = self.deck.length;
+  document.getElementById("mulliganBtn").disabled = self.mulliganUsed;
+
+  renderField(oppKey, "p2Field", false);
+  renderField(selfKey, "p1Field", true);
+  renderHand(selfKey);
+
+  document.getElementById("logBox").innerHTML = game.logs.map(l => `<div class="log-line">${l}</div>`).join("");
+}
+
+function renderField(sideKey, elemId, isSelf) {
+  const box = document.getElementById(elemId);
+  box.innerHTML = "";
+  game[sideKey].field.forEach((c, idx) => {
+    const isLv2 = (c.cores + (c.soul ? 1 : 0)) >= c.lv2c || (c.keyword === "真界放" && c.soul);
+    const bp = c.type === "スピリット" ? (isLv2 ? c.bp2 : c.bp1) : "-";
+    const lvLabel = isLv2 ? (c.keyword === "真界放" && c.soul ? "Lv2《真》" : "Lv2") : "Lv1";
+    const div = document.createElement("div");
+    div.className = `game-card attr-${c.attr} ${c.state === 1 ? 'exhausted' : c.state === 2 ? 'heavy' : ''}`;
+    const imgUrl = cardImages[c.id];
+    div.innerHTML = `
+      <div class="card-img-box" onclick="inspectCard('${c.id}')">
+        ${imgUrl ? `<img src="${imgUrl}" alt="${c.name}">` : `<div class="card-placeholder">${c.id}<br>${c.type}</div>`}
+      </div>
+      <div class="card-title" title="${c.name}">${c.name}</div>
+      <div class="card-meta"><span>${lvLabel}</span><span>コア:${c.cores}${c.soul?'+S':''}</span></div>
+      <div class="card-bp">BP: ${bp}</div>
+      ${isSelf ? `
+      <div class="card-ctrls">
+        <button onclick="cycleState('${sideKey}',${idx})">${c.state===0?'回復':c.state===1?'疲労':'重疲労'}</button>
+        <button onclick="modFieldCore('${sideKey}',${idx},1)">+1</button>
+        <button onclick="modFieldCore('${sideKey}',${idx},-1)">-1</button>
+        <button onclick="toggleFieldSoul('${sideKey}',${idx})">S</button>
+        <button class="btn-danger" onclick="destroyFieldCard('${sideKey}',${idx})">破壊</button>
+      </div>` : `
+      <div class="card-ctrls">
+        <button onclick="inspectCard('${c.id}')">詳細</button>
+        <button class="btn-danger" onclick="destroyFieldCard('${sideKey}',${idx})">破壊</button>
+      </div>`}
+    `;
+    box.appendChild(div);
+  });
+}
+
+function renderHand(sideKey) {
+  const box = document.getElementById("p1Hand");
+  box.innerHTML = "";
+  game[sideKey].hand.forEach((c, idx) => {
+    const div = document.createElement("div");
+    div.className = `game-card attr-${c.attr}`;
+    const imgUrl = cardImages[c.id];
+    div.innerHTML = `
+      <div class="card-img-box" onclick="inspectCard('${c.id}')">
+        ${imgUrl ? `<img src="${imgUrl}" alt="${c.name}">` : `<div class="card-placeholder">${c.id}<br>${c.type}</div>`}
+      </div>
+      <div class="card-title">${c.name}</div>
+      <div class="card-meta"><span>コスト:${c.cost}</span><span>軽減:赤${c.red}/白${c.white}</span></div>
+      <div class="card-ctrls">
+        <button class="btn-primary" onclick="openPlayModal('${sideKey}',${idx})">召喚/使用</button>
+        <button onclick="discardHand('${sideKey}',${idx})">破棄</button>
+      </div>
+    `;
+    box.appendChild(div);
+  });
+}
+
+function modStat(target, key, delta) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey][key] = Math.max(0, game[realKey][key] + delta);
+  addLog(`${realKey.toUpperCase()} の ${key} を ${delta>0?'+':''}${delta}`);
+  renderGame();
+}
+
+function toggleSoulReserve(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey].soulRes = !game[realKey].soulRes;
+  renderGame();
+}
+
+function drawCard(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  if(p.deck.length === 0) return alert("山札がありません");
+  p.hand.push(p.deck.shift());
+  addLog(`${realKey.toUpperCase()} が1枚ドロー`);
+  renderGame();
+}
+
+function coreStep(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey].res += 1;
+  addLog(`${realKey.toUpperCase()} コアステップ (+1)`);
+  renderGame();
+}
+
+function refreshStep(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  p.field.forEach(c => c.state = 0);
+  addLog(`${realKey.toUpperCase()} リフレッシュステップ（全回復）`);
+  renderGame();
+}
+
+function doMulligan(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  if(p.mulliganUsed) return;
+  p.deck.push(...p.hand);
+  for(let i=p.deck.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [p.deck[i], p.deck[j]] = [p.deck[j], p.deck[i]];
+  }
+  p.hand = p.deck.splice(0, 4);
+  p.mulliganUsed = true;
+  addLog(`${realKey.toUpperCase()} が手札を引き直し（マリガン）`);
+  renderGame();
+}
+
+function switchControlSide() {
+  viewSide = (viewSide === "p1") ? "p2" : "p1";
+  renderGame();
+}
+
+function endTurn() {
+  game.turn += 1;
+  game.active = (game.active === "p1") ? "p2" : "p1";
+  game.step = 0;
+  if(game.passAndPlay) viewSide = game.active;
+  addLog(`ターン終了 → ターン${game.turn} (${game.active.toUpperCase()})`);
+  renderGame();
+}
+
+function openPlayModal(sideKey, handIdx) {
+  const p = game[sideKey];
+  const card = p.hand[handIdx];
+  const redSym = p.field.filter(c => c.attr === "赤").length;
+  const whiteSym = p.field.filter(c => c.attr === "白").length;
+  const reduction = Math.min(card.red, redSym) + Math.min(card.white, whiteSym);
+  const exCandidates = p.trash.filter(c => c.keyword === "EX軽減");
+  const payCost = Math.max(0, card.cost - reduction);
+
+  const mc = document.getElementById("modalContent");
+  mc.innerHTML = `
+    <h3 style="margin-bottom:6px;">${card.name} (${card.type})</h3>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">${card.text}</p>
+    <div style="background:var(--bg); padding:8px; border-radius:6px; margin-bottom:10px; font-size:12px;">
+      元コスト: <strong>${card.cost}</strong> / フィールド軽減: <strong>-${reduction}</strong><br>
+      標準支払コスト: <strong style="color:#38bdf8; font-size:15px;">${payCost}</strong> (リザーブ: ${p.res})
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <button class="btn-primary" onclick="executePlay('${sideKey}',${handIdx},${payCost},false)">
+        ${card.type === 'マジック' ? `コスト${payCost}を支払って使用（トラッシュへ）` : `コスト${payCost}を支払い、コア1個を乗せて配置`}
+      </button>
+      ${exCandidates.length > 0 ? `
+      <button class="btn-warn" onclick="executePlay('${sideKey}',${handIdx},${Math.max(0, payCost-1)},true)">
+        トラッシュのEX軽減カード(${exCandidates[0].name})を除外して追加-1軽減 (コスト${Math.max(0, payCost-1)})
+      </button>` : ''}
+      <button onclick="closeModal()">キャンセル</button>
+    </div>
+  `;
+  document.getElementById("modalBg").classList.remove("hidden");
+}
+
+function executePlay(sideKey, handIdx, costPaid, useEx) {
+  const p = game[sideKey];
+  const card = p.hand[handIdx];
+  const needRes = costPaid + (card.type !== "マジック" ? 1 : 0);
+  if(p.res < needRes) {
+    if(!confirm(`リザーブが不足しています（必要:${needRes} / 現在:${p.res}）。強制配置しますか？`)) return;
+  } else {
+    p.res -= needRes;
+  }
+
+  if(useEx) {
+    const exIdx = p.trash.findIndex(c => c.keyword === "EX軽減");
+    if(exIdx >= 0) {
+      const exCard = p.trash.splice(exIdx, 1)[0];
+      p.exile.push(exCard);
+      addLog(`EX軽減: ${exCard.name} を除外エリアへ送った`);
+    }
+  }
+
+  p.hand.splice(handIdx, 1);
+  if(card.type === "マジック") {
+    p.trash.push(card);
+    addLog(`${sideKey.toUpperCase()} がマジック「${card.name}」を使用`);
+  } else {
+    p.field.push({ ...card, cores: 1, soul: false, state: 0 });
+    addLog(`${sideKey.toUpperCase()} が「${card.name}」を召喚/配置 (コスト${costPaid})`);
+  }
+  closeModal();
+  renderGame();
+}
+
+function discardHand(sideKey, idx) {
+  const p = game[sideKey];
+  const c = p.hand.splice(idx, 1)[0];
+  p.trash.push(c);
+  addLog(`${sideKey.toUpperCase()} が手札の「${c.name}」を破棄`);
+  renderGame();
+}
+
+function cycleState(sideKey, idx) {
+  const c = game[sideKey].field[idx];
+  c.state = (c.state + 1) % 3;
+  renderGame();
+}
+
+function modFieldCore(sideKey, idx, delta) {
+  const p = game[sideKey];
+  const c = p.field[idx];
+  if(delta > 0 && p.res > 0) { p.res--; c.cores++; }
+  else if(delta < 0 && c.cores > 0) { c.cores--; p.res++; }
+  renderGame();
+}
+
+function toggleFieldSoul(sideKey, idx) {
+  const p = game[sideKey];
+  const c = p.field[idx];
+  if(!c.soul && p.soulRes) { p.soulRes = false; c.soul = true; }
+  else if(c.soul) { c.soul = false; p.soulRes = true; }
+  renderGame();
+}
+
+function destroyFieldCard(sideKey, idx) {
+  const p = game[sideKey];
+  const c = p.field.splice(idx, 1)[0];
+  p.res += c.cores;
+  if(c.soul) p.soulRes = true;
+  p.trash.push(c);
+  addLog(`「${c.name}」が破壊されトラッシュへ（コア返却）`);
+  renderGame();
+}
+
+function openTrashModal(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  const mc = document.getElementById("modalContent");
+  mc.innerHTML = `
+    <h3 style="margin-bottom:8px;">${realKey.toUpperCase()} のトラッシュ (${p.trash.length}枚)</h3>
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+      ${p.trash.length === 0 ? '<p style="color:var(--muted);">カードはありません</p>' : p.trash.map((c, i) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); padding:6px; border-radius:6px;">
+          <span>${c.name} (${c.type})</span>
+          <button class="btn-primary" onclick="recoverTrash('${realKey}',${i})">手札に戻す</button>
+        </div>
+      `).join('')}
+    </div>
+    <button onclick="closeModal()">閉じる</button>
+  `;
+  document.getElementById("modalBg").classList.remove("hidden");
+}
+
+function recoverTrash(sideKey, idx) {
+  const p = game[sideKey];
+  const c = p.trash.splice(idx, 1)[0];
+  p.hand.push(c);
+  addLog(`トラッシュから「${c.name}」を手札に回収`);
+  openTrashModal(sideKey === viewSide ? "p1" : "p2");
+  renderGame();
+}
+
+function inspectCard(cid) {
+  const c = cardDB.find(x => x.id === cid);
+  if(!c) return;
+  const imgUrl = cardImages[c.id];
+  const mc = document.getElementById("modalContent");
+  mc.innerHTML = `
+    ${imgUrl ? `<img src="${imgUrl}" style="width:100%; max-height:320px; object-fit:contain; border-radius:8px; margin-bottom:8px;">` : ''}
+    <h3>${c.name} <span style="font-size:12px; color:var(--muted);">(${c.id})</span></h3>
+    <p style="font-size:12px; color:#38bdf8; margin:4px 0;">${c.attr} / ${c.type} / コスト:${c.cost} (軽減 赤${c.red}/白${c.white})</p>
+    ${c.type==='スピリット' ? `<p style="font-size:12px; color:#fbbf24;">Lv1 BP:${c.bp1} / Lv2(コア${c.lv2c}) BP:${c.bp2}</p>` : ''}
+    <p style="font-size:13px; background:var(--bg); padding:8px; border-radius:6px; margin:8px 0;">${c.text}</p>
+    <button style="width:100%;" onclick="closeModal()">閉じる</button>
+  `;
+  document.getElementById("modalBg").classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("modalBg").classList.add("hidden");
+}
+
+/* DECK BUILDER & IMAGE */
+function renderDeckBuilder() {
+  const dIdx = document.getElementById("editDeckSelect").value || 0;
+  const deck = decks[dIdx];
+  const total = Object.values(deck.cards).reduce((a,b)=>a+b, 0);
+  document.getElementById("deckCountBadge").textContent = `${total}枚`;
+
+  const grid = document.getElementById("dbGrid");
+  grid.innerHTML = "";
+  cardDB.forEach(c => {
+    const cnt = deck.cards[c.id] || 0;
+    const imgUrl = cardImages[c.id];
+    const div = document.createElement("div");
+    div.className = "db-card";
+    div.innerHTML = `
+      <div class="db-thumb">
+        ${imgUrl ? `<img src="${imgUrl}">` : `<span style="font-size:11px; color:var(--muted);">${c.id}</span>`}
+      </div>
+      <div style="font-weight:700; font-size:13px;">${c.name}</div>
+      <div style="font-size:11px; color:var(--muted);">${c.attr} / ${c.type} / コスト${c.cost}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+        <span>採用枚数: <strong>${cnt}</strong>/3</span>
         <div>
-          <h2 class="text-base font-bold text-amber-400">スタンダード対戦ルーム設定</h2>
-          <p class="text-[11px] text-slate-400 mt-0.5">スピリット・ネクサス・マジックの3種構成 / 第2メインステップ・《真界放》・EXシンボル対応</p>
-        </div>
-        <span class="text-[11px] px-2 py-1 rounded bg-slate-900 border border-slate-700 text-emerald-400 font-bold">軽量モード稼働中</span>
-      </div>
-
-      <!-- 使用デッキ選択 -->
-      <div class="bg-slate-900 p-3 rounded border border-slate-700">
-        <label class="block text-xs font-bold text-slate-300 mb-1">使用デッキ選択 (40枚以上・同名3枚まで)</label>
-        <div class="flex gap-2 items-center">
-          <select id="lobbyDeckSelect" class="flex-1 bg-slate-800 border border-slate-600 rounded px-2.5 py-1.5 text-slate-100 font-bold"></select>
-          <button onclick="switchView('deck')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold">デッキ編集</button>
+          <button onclick="modDeckCard(${dIdx},'${c.id}',-1)">-</button>
+          <button class="btn-primary" onclick="modDeckCard(${dIdx},'${c.id}',1)">+</button>
         </div>
       </div>
+      <label style="background:var(--panel2); text-align:center; padding:4px; border-radius:4px; font-size:11px; cursor:pointer; margin-top:4px;">
+        画像選択
+        <input type="file" accept="image/*" class="hidden" onchange="handleSingleImage(event,'${c.id}')">
+      </label>
+    `;
+    grid.appendChild(div);
+  });
+}
 
-      <!-- オンライン対戦 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="bg-slate-900/70 border border-slate-700 rounded p-3.5 flex flex-col justify-between space-y-2.5">
-          <div>
-            <h3 class="font-bold text-sm text-sky-400">新規ルーム作成 (先攻プレイヤー)</h3>
-            <p class="text-[11px] text-slate-400 mt-1">4桁のルームIDを発行します。先攻1ターン目はコア・アタック・第2メインが自動スキップされます。</p>
-          </div>
-          <button onclick="createOnlineRoom()" class="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded">ルームを作成する</button>
-        </div>
+function modDeckCard(dIdx, cid, delta) {
+  const deck = decks[dIdx];
+  const cur = deck.cards[cid] || 0;
+  const next = Math.max(0, Math.min(3, cur + delta));
+  if(next === 0) delete deck.cards[cid];
+  else deck.cards[cid] = next;
+  saveStorage();
+  refreshDeckSelectors();
+  renderDeckBuilder();
+}
 
-        <div class="bg-slate-900/70 border border-slate-700 rounded p-3.5 flex flex-col justify-between space-y-2.5">
-          <div>
-            <h3 class="font-bold text-sm text-emerald-400">ルームに参加 (後攻プレイヤー)</h3>
-            <p class="text-[11px] text-slate-400 mt-1">対戦相手から共有された4桁のルームIDを入力して入室します。</p>
-          </div>
-          <div class="flex gap-2">
-            <input id="joinRoomInput" type="text" maxlength="4" placeholder="1234" class="w-24 text-center tracking-widest font-mono text-sm bg-slate-800 border border-slate-600 rounded px-2 py-1.5" />
-            <button onclick="joinOnlineRoom()" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded">参加する</button>
-          </div>
-        </div>
-      </div>
+function compressImage(file, cb) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const maxW = 240;
+      const scale = Math.min(1, maxW / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
-      <!-- 1人用テストモード -->
-      <div class="pt-2 border-t border-slate-700 flex items-center justify-between">
-        <span class="text-[11px] text-slate-400">※1人で両プレイヤーの盤面操作や《真界放》・《継召》テストを行う場合：</span>
-        <button onclick="startSoloTestMode()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs">1人用テストモード起動</button>
-      </div>
+function handleSingleImage(ev, cid) {
+  const file = ev.target.files[0];
+  if(!file) return;
+  compressImage(file, dataUrl => {
+    cardImages[cid] = dataUrl;
+    saveStorage();
+    renderDeckBuilder();
+  });
+}
+
+function handleBulkImages(ev) {
+  const files = Array.from(ev.target.files);
+  let matched = 0;
+  let done = 0;
+  files.forEach(file => {
+    const base = file.name.replace(/\.[^/.]+$/, "").trim();
+    const target = cardDB.find(c => c.id.toLowerCase() === base.toLowerCase() || c.name === base);
+    if(target) {
+      matched++;
+      compressImage(file, dataUrl => {
+        cardImages[target.id] = dataUrl;
+        done++;
+        if(done === matched) {
+          saveStorage();
+          renderDeckBuilder();
+          alert(`${matched}枚のカード画像を自動反映しました！`);
+        }
+      });
+    }
+  });
+  if(matched === 0) alert("ファイル名がカードID（例: 26RSD01-001）またはカード名と一致する画像が見つかりませんでした。");
+}
+
+function openNewCardModal() {
+  const mc = document.getElementById("modalContent");
+  mc.innerHTML = `
+    <h3 style="margin-bottom:8px;">新規カード追加</h3>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <input id="ncId" placeholder="カードID (例: 26RBS01-001)">
+      <input id="ncName" placeholder="カード名">
+      <select id="ncType"><option>スピリット</option><option>ネクサス</option><option>マジック</option></select>
+      <select id="ncAttr"><option>赤</option><option>白</option><option>緑</option><option>青</option></select>
+      <input id="ncCost" type="number" placeholder="コスト (例: 3)" value="3">
+      <input id="ncRed" type="number" placeholder="赤軽減 (例: 2)" value="1">
+      <input id="ncWhite" type="number" placeholder="白軽減 (例: 0)" value="0">
+      <input id="ncBp1" type="number" placeholder="Lv1 BP (例: 4000)" value="4000">
+      <input id="ncBp2" type="number" placeholder="Lv2 BP (例: 7000)" value="7000">
+      <textarea id="ncText" placeholder="効果テキスト"></textarea>
+      <button class="btn-primary" onclick="addNewCard()">追加する</button>
+      <button onclick="closeModal()">キャンセル</button>
     </div>
-  </main>
-
-  <!-- ==================== 2. 対戦フィールド画面 (1366x768 一望レイアウト) ==================== -->
-  <main id="viewBattle" class="hidden flex-1 flex overflow-hidden">
-    
-    <!-- 左・中央：メイン対戦ボード -->
-    <div class="flex-1 flex flex-col justify-between p-1.5 gap-1 overflow-hidden">
-      
-      <!-- 相手エリア (Opponent) -->
-      <section class="bg-slate-900 border border-slate-700 rounded p-1.5 flex flex-col gap-1">
-        <div class="flex flex-wrap items-center justify-between gap-1 border-b border-slate-800 pb-1">
-          <div class="flex items-center gap-1.5">
-            <span class="px-1.5 py-0.5 rounded bg-rose-900 text-rose-100 font-bold text-[11px]">相手</span>
-            <span id="oppStatusBadge" class="text-[11px] text-slate-400">待機中</span>
-            <button id="btnSoloSwitchSide" onclick="toggleSoloControlSide()" class="hidden px-2 py-0.5 rounded bg-amber-700 hover:bg-amber-600 text-white font-bold text-[10px]">操作視点切替(ソロ用)</button>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <div class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">ライフ: <strong id="oppLife" class="text-rose-400 text-xs">5</strong></div>
-            <div class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
-              リザーブ: <strong id="oppReserve" class="text-sky-400">4</strong>
-              <span id="oppSoulLoc" class="ml-1 text-[10px] px-1 rounded bg-orange-900 text-amber-200">S:リザーブ</span>
-            </div>
-            <div class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">トラッシュ: <strong id="oppTrashCount">0</strong> (コア:<strong id="oppTrashCores" class="text-sky-300">0</strong>)</div>
-            <button onclick="openExileModal('opp')" class="bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded border border-purple-700 text-purple-300">除外: <strong id="oppExileCount">0</strong>枚</button>
-            <div class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">手札: <strong id="oppHandCount" class="text-amber-300">4</strong></div>
-            <div class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">デッキ: <strong id="oppDeckCount">40</strong></div>
-          </div>
-        </div>
-        <!-- 相手フィールド -->
-        <div id="oppFieldCards" class="h-[74px] flex gap-1.5 items-center overflow-x-auto bg-slate-950/60 px-1.5 py-1 rounded border border-slate-800">
-          <span class="text-slate-600 text-[11px]">相手フィールドにカードはありません</span>
-        </div>
-      </section>
-
-      <!-- 中央：8ステップ進行バー (スタンダード準拠) -->
-      <section class="bg-slate-800 border border-slate-600 rounded px-2 py-1 flex flex-wrap items-center justify-between gap-1">
-        <div class="flex items-center gap-1.5">
-          <span class="text-[11px] font-bold text-slate-300">ID:<strong id="displayRoomId" class="text-amber-400 font-mono">----</strong></span>
-          <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700">
-            T<strong id="turnCount">1</strong> (<span id="turnOwnerLabel" class="font-bold text-sky-400">自分</span>)
-          </span>
-          <span id="firstTurnRuleBadge" class="hidden text-[10px] px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-200 border border-amber-600 font-bold">先攻1T制限中(コア/アタック/第2メイン無)</span>
-        </div>
-
-        <!-- 8ステップボタン -->
-        <div class="flex flex-wrap items-center gap-0.5" id="stepButtons">
-          <button onclick="setStep('スタート')" data-step="スタート" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">1.スタート</button>
-          <button onclick="executeCoreStep()" data-step="コア" id="btnStepCore" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">2.コア(+1)</button>
-          <button onclick="executeDrawStep()" data-step="ドロー" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">3.ドロー</button>
-          <button onclick="executeRefreshStep()" data-step="リフレッシュ" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">4.リフレッシュ</button>
-          <button onclick="setStep('第1メイン')" data-step="第1メイン" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">5.第1メイン</button>
-          <button onclick="setStep('アタック')" data-step="アタック" id="btnStepAttack" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">6.アタック</button>
-          <button onclick="setStep('第2メイン')" data-step="第2メイン" id="btnStepMain2" class="step-btn px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">7.第2メイン</button>
-          <button onclick="endTurn()" data-step="エンド" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white">8.エンド</button>
-        </div>
-
-        <div class="flex items-center gap-1">
-          <button onclick="declareFlash()" class="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px]">⚡フラッシュ</button>
-          <button onclick="leaveRoom()" class="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px]">退室</button>
-        </div>
-      </section>
-
-      <!-- 自分エリア (Self) -->
-      <section class="bg-slate-900 border border-sky-800/80 rounded p-1.5 flex-1 flex flex-col justify-between gap-1 overflow-hidden">
-        <!-- 自分フィールド -->
-        <div class="flex flex-col flex-1 min-h-0">
-          <div class="flex items-center justify-between mb-0.5">
-            <span class="text-[10px] font-bold text-sky-400">自分フィールド (クリック:回復→疲労→重疲労 切替 / ソウルコア配置で《真界放》自動Lv2)</span>
-            <div class="flex items-center gap-1.5">
-              <span id="myReductionSummary" class="text-[10px] text-slate-300 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">軽減: なし</span>
-              <span id="myExileReadyBadge" class="text-[10px] text-purple-300 bg-purple-950/80 px-1.5 py-0.2 rounded border border-purple-700">トラッシュEX: 0枚</span>
-            </div>
-          </div>
-          <div id="myFieldCards" class="flex-1 min-h-[82px] flex gap-1.5 items-center overflow-x-auto bg-slate-950/60 px-1.5 py-1 rounded border border-slate-800">
-            <span class="text-slate-600 text-[11px]">手札からスピリット・ネクサスを召喚/配置してください</span>
-          </div>
-        </div>
-
-        <!-- 自分リソース＆公開領域バー (5カラム) -->
-        <div class="grid grid-cols-5 gap-1 bg-slate-800/90 p-1 rounded border border-slate-700 flex-shrink-0">
-          <!-- ライフ -->
-          <div class="bg-slate-900 px-2 py-1 rounded border border-slate-700 flex flex-col justify-between">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-rose-300 font-bold">ライフ</span>
-              <strong id="myLife" class="text-sm text-rose-400">5</strong>
-            </div>
-            <div class="flex gap-1 mt-0.5">
-              <button onclick="takeLifeDamage()" class="flex-1 bg-rose-800 hover:bg-rose-700 text-white text-[10px] py-0.5 rounded font-bold">-1(被ダメ)</button>
-              <button onclick="adjustLife(1)" class="px-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] py-0.5 rounded">+1</button>
-            </div>
-          </div>
-
-          <!-- リザーブ -->
-          <div class="bg-slate-900 px-2 py-1 rounded border border-slate-700 flex flex-col justify-between">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-sky-300 font-bold">リザーブ</span>
-              <div class="flex items-center gap-1">
-                <strong id="myReserve" class="text-sm text-sky-400">3</strong>
-                <span id="mySoulReserveBadge" class="soul-core-badge text-[9px] font-bold px-1 rounded">S</span>
-              </div>
-            </div>
-            <div class="flex gap-1 mt-0.5">
-              <button onclick="voidBoost(1)" class="flex-1 bg-sky-800 hover:bg-sky-700 text-white text-[10px] py-0.5 rounded font-bold">ボイド+1</button>
-              <button onclick="moveReserveToTrash(1)" class="px-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] py-0.5 rounded">→トラ</button>
-            </div>
-          </div>
-
-          <!-- トラッシュ -->
-          <div class="bg-slate-900 px-2 py-1 rounded border border-slate-700 flex flex-col justify-between">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-slate-300 font-bold">トラッシュ</span>
-              <div class="text-[10px]">
-                札:<strong id="myTrashCount">0</strong> コア:<strong id="myTrashCores" class="text-sky-300">0</strong>
-                <span id="mySoulTrashBadge" class="hidden soul-core-badge text-[9px] font-bold px-1 rounded">S</span>
-              </div>
-            </div>
-            <div class="flex gap-1 mt-0.5">
-              <button onclick="openTrashModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-[10px] py-0.5 rounded font-bold">一覧/EX除外</button>
-              <button onclick="moveTrashToReserve(1)" class="px-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] py-0.5 rounded">+1</button>
-            </div>
-          </div>
-
-          <!-- 除外エリア (スタンダード固有) -->
-          <div class="bg-slate-900 px-2 py-1 rounded border border-purple-800/80 flex flex-col justify-between">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-purple-300 font-bold">除外エリア</span>
-              <strong id="myExileCount" class="text-sm text-purple-400">0</strong>
-            </div>
-            <div class="flex gap-1 mt-0.5">
-              <button onclick="openExileModal('me')" class="w-full bg-purple-900/80 hover:bg-purple-800 text-purple-100 text-[10px] py-0.5 rounded font-bold">除外カード確認</button>
-            </div>
-          </div>
-
-          <!-- デッキ＆マリガン -->
-          <div class="bg-slate-900 px-2 py-1 rounded border border-slate-700 flex flex-col justify-between">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] text-emerald-300 font-bold">デッキ</span>
-              <strong id="myDeckCount" class="text-sm text-emerald-400">40</strong>
-            </div>
-            <div class="flex gap-1 mt-0.5">
-              <button onclick="drawCards(1)" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] py-0.5 rounded font-bold">1ドロー</button>
-              <button id="btnMulligan" onclick="mulliganHand()" class="px-1.5 bg-amber-700 hover:bg-amber-600 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[10px] py-0.5 rounded font-bold" title="ゲーム開始時1回のみ手札を全て戻して4枚引き直す">引き直し</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 自分手札エリア -->
-        <div class="flex-shrink-0">
-          <div class="flex items-center justify-between mb-0.5">
-            <span class="text-[10px] font-bold text-amber-300">自分手札 (<span id="myHandCount">4</span>枚) - クリックで召喚・使用 (《継召》/EX軽減自動計算対応)</span>
-            <span class="text-[10px] text-slate-400">※スタンダードではバーストは存在しません</span>
-          </div>
-          <div id="myHandCards" class="h-[96px] flex gap-1.5 overflow-x-auto bg-slate-950/60 p-1 rounded border border-slate-800"></div>
-        </div>
-      </section>
-    </div>
-
-    <!-- 右サイドバー：カード詳細 & チャット/ログ -->
-    <aside class="w-72 bg-slate-900 border-l border-slate-700 flex flex-col justify-between p-1.5 gap-1.5 flex-shrink-0">
-      <!-- カード詳細テキスト -->
-      <div class="bg-slate-800 border border-slate-700 rounded p-2 flex-shrink-0">
-        <div class="text-[10px] font-bold text-slate-400 border-b border-slate-700 pb-0.5 mb-1 flex justify-between">
-          <span>カード詳細</span>
-          <span id="detailCardMeta" class="text-amber-400">-</span>
-        </div>
-        <div id="cardDetailContent" class="text-[11px] space-y-1 h-[135px] overflow-y-auto">
-          <p class="text-slate-500">カードにカーソルを合わせるかクリックすると効果・《真界放》・EXシンボル詳細が表示されます。</p>
-        </div>
-      </div>
-
-      <!-- バトルログ＆クイックチャット -->
-      <div class="flex-1 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col min-h-0">
-        <div class="text-[10px] font-bold text-slate-300 border-b border-slate-700 pb-1 mb-1 space-y-1">
-          <div class="flex justify-between items-center">
-            <span>対戦ログ / チャット</span>
-            <span class="text-[9px] text-slate-400">ワンクリック宣言</span>
-          </div>
-          <div class="flex flex-wrap gap-1">
-            <button onclick="sendQuickChat('フラッシュありますか？')" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[9px]">フラッシュ確認</button>
-            <button onclick="sendQuickChat('パス（ありません）')" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[9px]">パス</button>
-            <button onclick="sendQuickChat('ブロックします')" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[9px]">ブロック</button>
-            <button onclick="sendQuickChat('ライフで受けます')" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[9px]">ライフ受</button>
-            <button onclick="sendQuickChat('第2メイン入ります')" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[9px]">第2メイン</button>
-          </div>
-        </div>
-        <div id="battleLogList" class="flex-1 overflow-y-auto space-y-1 text-[10px] pr-1 font-mono"></div>
-        <form onsubmit="handleChatSubmit(event)" class="mt-1 flex gap-1">
-          <input id="chatInput" type="text" placeholder="効果宣言・チャット..." class="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-[11px]" />
-          <button type="submit" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[11px]">送信</button>
-        </form>
-      </div>
-    </aside>
-  </main>
-
-  <!-- ==================== 3. デッキ構築 / オリジナルカード作成画面 ==================== -->
-  <main id="viewDeck" class="hidden flex-1 p-3 overflow-y-auto">
-    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3">
-      
-      <!-- 左側：デッキリスト (7カラム) -->
-      <div class="lg:col-span-7 bg-slate-800 border border-slate-700 rounded-lg p-3.5 space-y-2.5">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 pb-2">
-          <h2 class="font-bold text-sm text-amber-400">スタンダード デッキビルダー (40枚以上 / 同名最大3枚)</h2>
-          <div class="flex gap-1.5">
-            <select id="editorDeckSelect" onchange="loadSelectedDeckToEditor()" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs"></select>
-            <button onclick="createNewDeck()" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 rounded text-xs font-bold">新規</button>
-            <button onclick="saveCurrentEditorDeck()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-bold">保存</button>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900 p-2 rounded border border-slate-700">
-          <div class="flex items-center gap-2">
-            <label class="text-xs text-slate-400">デッキ名:</label>
-            <input id="editorDeckName" type="text" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs font-bold w-52" />
-          </div>
-          <div id="deckValidationStatus" class="text-xs font-bold"></div>
-        </div>
-
-        <div id="editorDeckCards" class="space-y-1 max-h-[340px] overflow-y-auto bg-slate-900/60 p-2 rounded border border-slate-700"></div>
-
-        <!-- JSON入出力 -->
-        <div class="pt-2 border-t border-slate-700 space-y-1">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-bold text-slate-300">デッキJSON エクスポート / インポート</span>
-            <div class="flex gap-1.5">
-              <button onclick="exportDeckJson()" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">JSON出力＆コピー</button>
-              <button onclick="importDeckJson()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-bold">JSON読込</button>
-            </div>
-          </div>
-          <textarea id="deckJsonArea" rows="2" placeholder="JSON文字列を貼り付けて「JSON読込」をクリック" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-[11px] font-mono"></textarea>
-        </div>
-      </div>
-
-      <!-- 右側：カードプール＆スタンダード準拠カード作成 (5カラム) -->
-      <div class="lg:col-span-5 space-y-3">
-        <div class="bg-slate-800 border border-slate-700 rounded-lg p-3.5 space-y-2">
-          <h3 class="font-bold text-sm text-sky-400 border-b border-slate-700 pb-1">スタンダード オリジナルカード作成</h3>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="col-span-2">
-              <label class="text-slate-400 block">カード名</label>
-              <input id="newCardName" type="text" placeholder="例: 創世龍皇ジーク・アポロ" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1" />
-            </div>
-            <div>
-              <label class="text-slate-400 block">種類 (3種のみ)</label>
-              <select id="newCardType" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1">
-                <option value="スピリット">スピリット</option>
-                <option value="ネクサス">ネクサス</option>
-                <option value="マジック">マジック</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-slate-400 block">属性</label>
-              <select id="newCardColor" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1">
-                <option value="赤">赤</option>
-                <option value="緑">緑</option>
-                <option value="白">白</option>
-                <option value="青">青</option>
-                <option value="紫">紫</option>
-                <option value="黄">黄</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-slate-400 block">コスト / 通常軽減数</label>
-              <div class="flex gap-1">
-                <input id="newCardCost" type="number" min="0" max="15" value="5" class="w-1/2 bg-slate-900 border border-slate-600 rounded px-1.5 py-1" title="コスト" />
-                <input id="newCardRed" type="number" min="0" max="10" value="3" class="w-1/2 bg-slate-900 border border-slate-600 rounded px-1.5 py-1" title="軽減シンボル数" />
-              </div>
-            </div>
-            <div>
-              <label class="text-slate-400 block">スタンダード固有特性</label>
-              <div class="flex flex-col gap-1 pt-0.5 text-[11px]">
-                <label class="flex items-center gap-1 cursor-pointer">
-                  <input id="newCardShinkaiho" type="checkbox" class="rounded" />
-                  <span class="text-amber-300 font-bold">《真界放》持ち</span>
-                </label>
-                <label class="flex items-center gap-1 cursor-pointer">
-                  <input id="newCardExSymbol" type="checkbox" class="rounded" />
-                  <span class="text-purple-300 font-bold">EXシンボル持ち</span>
-                </label>
-              </div>
-            </div>
-            <div>
-              <label class="text-slate-400 block">Lv1 コア / BP</label>
-              <div class="flex gap-1">
-                <input id="newCardLv1C" type="number" min="1" value="1" class="w-11 bg-slate-900 border border-slate-600 rounded px-1 py-1" />
-                <input id="newCardLv1BP" type="number" step="1000" value="4000" class="flex-1 bg-slate-900 border border-slate-600 rounded px-1 py-1" />
-              </div>
-            </div>
-            <div>
-              <label class="text-slate-400 block">Lv2 コア / BP</label>
-              <div class="flex gap-1">
-                <input id="newCardLv2C" type="number" min="0" value="3" class="w-11 bg-slate-900 border border-slate-600 rounded px-1 py-1" />
-                <input id="newCardLv2BP" type="number" step="1000" value="7000" class="flex-1 bg-slate-900 border border-slate-600 rounded px-1 py-1" />
-              </div>
-            </div>
-            <div class="col-span-2">
-              <label class="text-slate-400 block">効果テキスト</label>
-              <textarea id="newCardEffect" rows="2" placeholder="《真界放：ソウルコア》【アタック時】..." class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1"></textarea>
-            </div>
-          </div>
-          <button onclick="registerCustomCard()" class="w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded text-xs">カード登録＆デッキへ1枚追加</button>
-        </div>
-
-        <div class="bg-slate-800 border border-slate-700 rounded-lg p-3.5 space-y-1.5">
-          <h3 class="font-bold text-sm text-emerald-400 border-b border-slate-700 pb-1">スタンダード カードプール (クリックでデッキ追加)</h3>
-          <div id="cardPoolList" class="max-h-[220px] overflow-y-auto space-y-1"></div>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- ==================== モーダル：手札アクション (《継召》/EX軽減オプション対応) ==================== -->
-  <div id="actionModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-3">
-    <div class="bg-slate-800 border border-slate-600 rounded-lg max-w-md w-full p-4 space-y-2.5">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-1.5">
-        <h3 id="modalCardTitle" class="font-bold text-sm text-amber-400">カード使用・召喚</h3>
-        <button onclick="closeActionModal()" class="text-slate-400 hover:text-white font-bold px-2">✕</button>
-      </div>
-      <div id="modalCardBody" class="text-xs text-slate-200 space-y-2"></div>
-      <div id="modalActionButtons" class="flex flex-col gap-1.5 pt-1"></div>
-    </div>
-  </div>
-
-  <!-- ==================== モーダル：トラッシュ閲覧 (EXシンボル除外ボタン付き) ==================== -->
-  <div id="trashModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-3">
-    <div class="bg-slate-800 border border-slate-600 rounded-lg max-w-lg w-full p-4 space-y-2.5">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-1.5">
-        <h3 class="font-bold text-sm text-slate-200">自分のトラッシュ一覧 (回収 / EXシンボル除外)</h3>
-        <button onclick="document.getElementById('trashModal').classList.add('hidden')" class="text-slate-400 hover:text-white font-bold px-2">✕</button>
-      </div>
-      <div id="trashModalList" class="max-h-72 overflow-y-auto space-y-1.5 text-xs"></div>
-    </div>
-  </div>
-
-  <!-- ==================== モーダル：除外エリア閲覧 ==================== -->
-  <div id="exileModal" class="hidden fixed inset-0 bg-black/75 z-40 flex items-center justify-center p-3">
-    <div class="bg-slate-800 border border-purple-600 rounded-lg max-w-lg w-full p-4 space-y-2.5">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-1.5">
-        <h3 id="exileModalTitle" class="font-bold text-sm text-purple-300">除外エリア (公開領域)</h3>
-        <button onclick="document.getElementById('exileModal').classList.add('hidden')" class="text-slate-400 hover:text-white font-bold px-2">✕</button>
-      </div>
-      <div id="exileModalList" class="max-h-72 overflow-y-auto space-y-1.5 text-xs"></div>
-    </div>
-  </div>
-
-  <!-- ==================== JavaScript ==================== -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- 1. Firebase 初期化 ---
-    let db = null;
-    let auth = null;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'bs-standard-sim';
-
-    async function initFirebase() {
-      const statusEl = document.getElementById('connectionStatus');
-      try {
-        if (typeof __firebase_config === 'undefined') {
-          statusEl.textContent = "オフライン(ソロモード可)";
-          statusEl.className = "text-[10px] px-2 py-0.5 rounded bg-amber-900/70 text-amber-200 border border-amber-700";
-          return;
-        }
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-        statusEl.textContent = "オンライン接続完了";
-        statusEl.className = "text-[10px] px-2 py-0.5 rounded bg-emerald-900/70 text-emerald-200 border border-emerald-700";
-      } catch (e) {
-        console.error(e);
-        statusEl.textContent = "通信エラー(ソロモード可)";
-        statusEl.className = "text-[10px] px-2 py-0.5 rounded bg-rose-900/70 text-rose-200 border border-rose-700";
-      }
-    }
-
-    // --- 2. スタンダード環境(Block A: 26RBS01〜03準拠) サンプルカード＆デッキ ---
-    const STANDARD_CARDS = [
-      // デッキ1: 赤緑・真界放ビート用 (14種×3枚=42枚構成可)
-      { id: "rg01", name: "小竜ドラグノ・幼体", type: "スピリット", color: "赤", cost: 1, red: 1, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 2000, lv2C: 3, lv2BP: 4000, effect: "【EXシンボル】トラッシュにあるこのカードを除外することで、赤/緑の軽減シンボル1つを満たす。" },
-      { id: "rg02", name: "翠風の妖精シルフィー", type: "スピリット", color: "緑", cost: 2, red: 1, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 2000, lv2C: 2, lv2BP: 4000, effect: "【召喚時】ボイドからコア1個を自分のリザーブに置く。【EXシンボル】" },
-      { id: "rg03", name: "炎刃の武竜ジンライ", type: "スピリット", color: "赤", cost: 3, red: 2, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 3000, lv2C: 3, lv2BP: 6000, effect: "《真界放》(ソウルコアが置かれている間Lv2) 【Lv2アタック時】BP4000以下の相手スピリット1体を破壊する。" },
-      { id: "rg04", name: "樹海狼フェンリル・ハウンド", type: "スピリット", color: "緑", cost: 4, red: 2, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 4000, lv2C: 3, lv2BP: 7000, effect: "《真界放》【Lv2アタック時】相手のスピリット1体を疲労させる。バトル終了時、自分はデッキから1枚ドローする。" },
-      { id: "rg05", name: "創世の焔龍皇ジーク・ブレイズ", type: "スピリット", color: "赤", cost: 6, red: 3, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 6000, lv2C: 4, lv2BP: 11000, effect: "《真界放》【Lv2アタック時】BP8000以下の相手スピリット1体を破壊し、このスピリットはBP+3000される。" },
-      { id: "rg06", name: "天翠の覇王グリフォン・ロード", type: "スピリット", color: "緑", cost: 7, red: 4, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 7000, lv2C: 4, lv2BP: 12000, effect: "《真界放》【Lv2アタック時】相手のスピリット1体を「重疲労」させる（重疲労状態のスピリットは1回の回復では回復しない）。" },
-      { id: "rg07", name: "灼熱の創世祭壇", type: "ネクサス", color: "赤", cost: 3, red: 2, shinkaiho: false, exSymbol: true, lv1C: 0, lv1BP: 0, lv2C: 2, lv2BP: 0, effect: "【Lv1-Lv2】自分の《真界放》を持つスピリットがアタックしたとき、自分はデッキから1枚ドローする。【EXシンボル】" },
-      { id: "rg08", name: "芽吹きの世界樹", type: "ネクサス", color: "緑", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 2, lv2BP: 0, effect: "【Lv1-Lv2】自分の第2メインステップ開始時、ボイドからコア1個を自分のスピリットに置く。" },
-      { id: "rg09", name: "クリムゾン・バーン", type: "マジック", color: "赤", cost: 3, red: 2, shinkaiho: false, exSymbol: true, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【フラッシュ】BP5000以下の相手スピリット1体を破壊する。【EXシンボル】" },
-      { id: "rg10", name: "エメラルド・バインド", type: "マジック", color: "緑", cost: 4, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【フラッシュ】相手のスピリット1体を重疲労させる。その後、自分のスピリット1体を回復させる。" },
-      { id: "rg11", name: "紅蓮の双翼ドロー", type: "マジック", color: "赤", cost: 4, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【メイン/フラッシュ】自分はデッキから2枚ドローする。" },
-      { id: "rg12", name: "猛進の竜騎士イグニス", type: "スピリット", color: "赤", cost: 4, red: 2, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 4000, lv2C: 3, lv2BP: 6000, effect: "《継召》トラッシュのEXシンボル持ち1枚を除外して召喚できる。【召喚時】1枚ドロー。【EXシンボル】" },
-      { id: "rg13", name: "疾風の狩人レオン", type: "スピリット", color: "緑", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 1, lv1BP: 3000, lv2C: 2, lv2BP: 5000, effect: "【第2メイン】自分のフィールドの疲労スピリット1体を回復できる（ターンに1回）。" },
-      { id: "rg14", name: "絶界の焔神龍王", type: "スピリット", color: "赤", cost: 8, red: 5, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 8000, lv2C: 4, lv2BP: 14000, effect: "《真界放》【Lv2アタック時】相手のスピリット/ネクサス合計2つを破壊する。" },
-
-      // デッキ2: 白青・継召＆第2メインコントロール用
-      { id: "wb01", name: "機巧偵察機スワロー", type: "スピリット", color: "白", cost: 1, red: 1, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 2000, lv2C: 2, lv2BP: 4000, effect: "【EXシンボル】ブロッカー要員。第2メインステップで展開して守りを固める。" },
-      { id: "wb02", name: "蒼海の魔導士アズール", type: "スピリット", color: "青", cost: 2, red: 1, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 2000, lv2C: 3, lv2BP: 4000, effect: "【召喚時】自分はデッキから1枚ドローし、手札1枚を破棄する。【EXシンボル】" },
-      { id: "wb03", name: "白銀の盾騎士ヴァルキリー", type: "スピリット", color: "白", cost: 4, red: 2, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 4000, lv2C: 3, lv2BP: 8000, effect: "《真界放》【Lv2相手のアタックステップ】このスピリットはBP+3000され、重疲労しない。" },
-      { id: "wb04", name: "深淵の巨兵タイタン・ゴーレム", type: "スピリット", color: "青", cost: 5, red: 3, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 5000, lv2C: 3, lv2BP: 8000, effect: "《継召》【召喚時】コスト4以下の相手スピリット1体を破壊する。【EXシンボル】" },
-      { id: "wb05", name: "絶界の機神皇オーディン・ゼロ", type: "スピリット", color: "白", cost: 7, red: 4, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 7000, lv2C: 4, lv2BP: 13000, effect: "《真界放》【Lv2ブロック時】このスピリットは回復する。相手のスピリット1体を手札に戻す。" },
-      { id: "wb06", name: "蒼穹の海王ポセイドン・レクス", type: "スピリット", color: "青", cost: 7, red: 4, shinkaiho: true, exSymbol: false, lv1C: 1, lv1BP: 7000, lv2C: 4, lv2BP: 12000, effect: "《真界放》【Lv2アタック時】自分の除外エリアのカード2枚につき、相手のデッキを上から4枚破棄する。" },
-      { id: "wb07", name: "天空の白亜城塞", type: "ネクサス", color: "白", cost: 3, red: 2, shinkaiho: false, exSymbol: true, lv1C: 0, lv1BP: 0, lv2C: 2, lv2BP: 0, effect: "【Lv1-Lv2】自分の第2メインステップに白のスピリットを召喚するとき、コストを-1する。【EXシンボル】" },
-      { id: "wb08", name: "海底の古代図書館", type: "ネクサス", color: "青", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 2, lv2BP: 0, effect: "【Lv1-Lv2】自分がEXシンボルでカードを除外したとき、自分はデッキから1枚ドローする（ターンに1回）。" },
-      { id: "wb09", name: "ホワイト・イージス", type: "マジック", color: "白", cost: 4, red: 2, shinkaiho: false, exSymbol: true, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【フラッシュ】このバトル終了時、アタックステップを終了する。【EXシンボル】" },
-      { id: "wb10", name: "ディープ・ストリーム", type: "マジック", color: "青", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【メイン】自分はデッキから3枚ドローする。その後、手札2枚を破棄する。" },
-      { id: "wb11", name: "氷壁の守護者フロスト", type: "スピリット", color: "白", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 1, lv1BP: 3000, lv2C: 2, lv2BP: 6000, effect: "【第2メイン召喚時】このスピリットが第2メインステップに召喚されたとき、1枚ドローする。" },
-      { id: "wb12", name: "海流の導き手ネプチューン", type: "スピリット", color: "青", cost: 4, red: 2, shinkaiho: false, exSymbol: true, lv1C: 1, lv1BP: 4000, lv2C: 3, lv2BP: 6000, effect: "《継召》【召喚時】自分のトラッシュのEXシンボル持ち1枚を手札に戻す。【EXシンボル】" },
-      { id: "wb13", name: "鋼鉄の重装兵タンク", type: "スピリット", color: "白", cost: 5, red: 3, shinkaiho: false, exSymbol: false, lv1C: 1, lv1BP: 5000, lv2C: 3, lv2BP: 9000, effect: "相手の重疲労状態のスピリットはアタック・ブロックできない。" },
-      { id: "wb14", name: "蒼白の調和", type: "マジック", color: "白", cost: 3, red: 2, shinkaiho: false, exSymbol: false, lv1C: 0, lv1BP: 0, lv2C: 0, lv2BP: 0, effect: "【フラッシュ】相手のスピリット1体を手札に戻す。" }
-    ];
-
-    let cardPool = [...STANDARD_CARDS];
-
-    // 同名最大3枚制限に準拠した40枚デッキ構築 (13種×3枚 + 1種×1枚 = 40枚)
-    function createStandard40Deck(ids) {
-      const list = [];
-      ids.forEach((id, idx) => {
-        const count = idx < 13 ? 3 : 1;
-        for (let i = 0; i < count; i++) list.push(id);
-      });
-      return list;
-    }
-
-    const DEFAULT_DECKS = [
-      {
-        id: "std_rg",
-        name: "【標準1】赤緑・真界放ビート (40枚)",
-        cards: createStandard40Deck(["rg01","rg02","rg03","rg04","rg05","rg06","rg07","rg08","rg09","rg10","rg11","rg12","rg13","rg14"])
-      },
-      {
-        id: "std_wb",
-        name: "【標準2】白青・継召＆第2メイン制御 (40枚)",
-        cards: createStandard40Deck(["wb01","wb02","wb03","wb04","wb05","wb06","wb07","wb08","wb09","wb10","wb11","wb12","wb13","wb14"])
-      }
-    ];
-
-    let savedDecks = JSON.parse(localStorage.getItem("bs_std_decks") || "null") || DEFAULT_DECKS;
-    const savedCustomCards = JSON.parse(localStorage.getItem("bs_std_custom_cards") || "[]");
-    savedCustomCards.forEach(cc => {
-      if (!cardPool.some(c => c.id === cc.id)) cardPool.push(cc);
-    });
-
-    let currentEditorDeckIndex = 0;
-
-    // --- 3. 対戦状態管理 ---
-    let matchMode = "none"; // "online" | "solo"
-    let roomId = null;
-    let myRole = "p1"; // "p1"(先攻) | "p2"(後攻)
-    let soloViewSide = "p1"; // ソロモード時にどちらを「自分」として表示・操作するか
-    let unsubscribeRoom = null;
-
-    function createInitialPlayerState(deckCardIds) {
-      const fullDeck = deckCardIds.map((cid, idx) => {
-        const base = cardPool.find(c => c.id === cid) || cardPool[0];
-        return { ...base, uid: `${cid}_${idx}_${Math.random().toString(36).slice(2, 6)}` };
-      });
-      shuffleArray(fullDeck);
-      const hand = fullDeck.splice(0, 4); // 初期手札4枚
-      return {
-        joined: true,
-        life: 5,
-        reserveCores: 3,        // 通常コア3個
-        soulCoreLoc: "reserve", // "reserve" | "trash" | fieldUid
-        trashCores: 0,
-        mulliganUsed: false,    // マリガン1回制限フラグ
-        deck: fullDeck,
-        hand: hand,
-        trash: [],
-        exile: [],              // 除外エリア (公開領域)
-        field: []               // [{ ...card, cores: 1, posture: "ready" }] ("ready" | "exhausted" | "heavy")
-      };
-    }
-
-    let gameState = {
-      turnCount: 1,
-      turnOwner: "p1",
-      step: "第1メイン", // 先攻1ターン目はスタート→ドロー→リフレッシュ→第1メインへ直接移行可能
-      p1: null,
-      p2: null,
-      logs: []
-    };
-
-    function shuffleArray(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-    }
-
-    function showToast(msg, type = "info") {
-      const box = document.getElementById("toastBox");
-      const el = document.createElement("div");
-      const colors = {
-        info: "bg-slate-800 border-sky-500 text-sky-200",
-        success: "bg-emerald-900 border-emerald-400 text-emerald-100",
-        warn: "bg-amber-900 border-amber-400 text-amber-100",
-        error: "bg-rose-900 border-rose-400 text-rose-100"
-      };
-      el.className = `px-2.5 py-1.5 rounded border text-[11px] font-bold ${colors[type] || colors.info}`;
-      el.textContent = msg;
-      box.appendChild(el);
-      setTimeout(() => el.remove(), 3000);
-    }
-
-    function getAttrBadgeClass(color) {
-      const map = { "赤": "attr-red", "白": "attr-white", "青": "attr-blue", "紫": "attr-purple", "緑": "attr-green", "黄": "attr-yellow" };
-      return map[color] || "attr-red";
-    }
-
-    // --- 画面遷移 ---
-    window.switchView = function(view) {
-      document.getElementById("viewLobby").classList.toggle("hidden", view !== "lobby");
-      document.getElementById("viewBattle").classList.toggle("hidden", view !== "battle");
-      document.getElementById("viewDeck").classList.toggle("hidden", view !== "deck");
-
-      document.getElementById("navLobby").className = view !== "deck"
-        ? "px-2.5 py-1 rounded bg-indigo-600 text-white font-bold text-xs"
-        : "px-2.5 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700 text-xs";
-      document.getElementById("navDeck").className = view === "deck"
-        ? "px-2.5 py-1 rounded bg-indigo-600 text-white font-bold text-xs"
-        : "px-2.5 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700 text-xs";
-
-      if (view === "deck") renderDeckEditor();
-      if (view === "lobby") refreshLobbyDeckSelect();
-    };
-
-    function refreshLobbyDeckSelect() {
-      const sel = document.getElementById("lobbyDeckSelect");
-      sel.innerHTML = savedDecks.map((d, idx) => `<option value="${idx}">${d.name} (${d.cards.length}枚)</option>`).join("");
-    }
-
-    // --- 4. ルーム作成・参加・ソロモード ---
-    window.createOnlineRoom = async function() {
-      if (!db) {
-        showToast("オフライン環境のため1人用テストモードを起動します", "warn");
-        return startSoloTestMode();
-      }
-      const deckIdx = parseInt(document.getElementById("lobbyDeckSelect").value || "0", 10);
-      const selectedDeck = savedDecks[deckIdx] || savedDecks[0];
-
-      const newRoomId = Math.floor(1000 + Math.random() * 9000).toString();
-      roomId = newRoomId;
-      myRole = "p1";
-      matchMode = "online";
-
-      gameState = {
-        turnCount: 1,
-        turnOwner: "p1",
-        step: "第1メイン",
-        p1: createInitialPlayerState(selectedDeck.cards),
-        p2: { joined: false, life: 5, reserveCores: 3, soulCoreLoc: "reserve", trashCores: 0, mulliganUsed: false, deck: [], hand: [], trash: [], exile: [], field: [] },
-        logs: [{ time: nowStr(), text: `ルーム [${newRoomId}] 作成。先攻1ターン目はコア・アタック・第2メインがありません。` }]
-      };
-
-      try {
-        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bs_std_rooms', roomId);
-        await setDoc(roomRef, gameState);
-        subscribeToRoom(roomId);
-        switchView("battle");
-        showToast(`ルームID: ${roomId} を発行しました`, "success");
-      } catch (e) {
-        console.error(e);
-        showToast("ルーム作成エラー", "error");
-      }
-    };
-
-    window.joinOnlineRoom = async function() {
-      if (!db) {
-        showToast("オフラインのため1人用テストモードをご利用ください", "warn");
-        return;
-      }
-      const inputId = document.getElementById("joinRoomInput").value.trim();
-      if (!/^\d{4}$/.test(inputId)) {
-        showToast("4桁の数字ルームIDを入力してください", "warn");
-        return;
-      }
-      const deckIdx = parseInt(document.getElementById("lobbyDeckSelect").value || "0", 10);
-      const selectedDeck = savedDecks[deckIdx] || savedDecks[0];
-
-      try {
-        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bs_std_rooms', inputId);
-        const snap = await getDoc(roomRef);
-        if (!snap.exists()) {
-          showToast("ルームIDが見つかりません", "error");
-          return;
-        }
-        roomId = inputId;
-        myRole = "p2";
-        matchMode = "online";
-
-        const data = snap.data();
-        data.p2 = createInitialPlayerState(selectedDeck.cards);
-        data.logs = [...(data.logs || []), { time: nowStr(), text: "後攻プレイヤーが参加しました！バトル開始！" }];
-
-        await setDoc(roomRef, data);
-        subscribeToRoom(roomId);
-        switchView("battle");
-        showToast(`ルーム [${roomId}] に参加しました`, "success");
-      } catch (e) {
-        console.error(e);
-        showToast("ルーム参加エラー", "error");
-      }
-    };
-
-    function subscribeToRoom(id) {
-      if (unsubscribeRoom) unsubscribeRoom();
-      const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bs_std_rooms', id);
-      unsubscribeRoom = onSnapshot(roomRef, (snap) => {
-        if (snap.exists()) {
-          gameState = snap.data();
-          renderBattleBoard();
-        }
-      });
-    }
-
-    window.startSoloTestMode = function() {
-      const deckIdx = parseInt(document.getElementById("lobbyDeckSelect").value || "0", 10);
-      const selectedDeck = savedDecks[deckIdx] || savedDecks[0];
-      const oppDeck = savedDecks[(deckIdx + 1) % savedDecks.length];
-
-      roomId = "SOLO";
-      myRole = "p1";
-      soloViewSide = "p1";
-      matchMode = "solo";
-      gameState = {
-        turnCount: 1,
-        turnOwner: "p1",
-        step: "第1メイン",
-        p1: createInitialPlayerState(selectedDeck.cards),
-        p2: createInitialPlayerState(oppDeck.cards),
-        logs: [{ time: nowStr(), text: "1人用テストモード起動。「操作視点切替」で先攻/後攻の盤面を自由に操作できます。" }]
-      };
-      switchView("battle");
-      renderBattleBoard();
-    };
-
-    window.toggleSoloControlSide = function() {
-      if (matchMode !== "solo") return;
-      soloViewSide = soloViewSide === "p1" ? "p2" : "p1";
-      renderBattleBoard();
-      showToast(`操作視点を「${soloViewSide === "p1" ? "先攻(P1)" : "後攻(P2)"}」に切り替えました`, "info");
-    };
-
-    window.leaveRoom = function() {
-      if (unsubscribeRoom) unsubscribeRoom();
-      matchMode = "none";
-      roomId = null;
-      switchView("lobby");
-    };
-
-    function activeRole() {
-      return matchMode === "solo" ? soloViewSide : myRole;
-    }
-    function getMe() { return gameState[activeRole()]; }
-    function getOpp() { return gameState[activeRole() === "p1" ? "p2" : "p1"]; }
-
-    async function syncState(logMessage = null) {
-      if (logMessage) {
-        const actor = activeRole() === "p1" ? "P1" : "P2";
-        gameState.logs = [...(gameState.logs || []).slice(-45), { time: nowStr(), text: `[${actor}] ${logMessage}` }];
-      }
-      renderBattleBoard();
-      if (matchMode === "online" && db && roomId) {
-        try {
-          const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bs_std_rooms', roomId);
-          await updateDoc(roomRef, gameState);
-        } catch (e) {
-          console.error("Sync error:", e);
-        }
-      }
-    }
-
-    function nowStr() {
-      const d = new Date();
-      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    }
-
-    // --- 5. スタンダード公式ルール判定エンジン ---
-    function isFirstTurnRestriction() {
-      return gameState.turnCount === 1 && gameState.turnOwner === "p1";
-    }
-
-    function getTotalReserveCores(p) {
-      return p.reserveCores + (p.soulCoreLoc === "reserve" ? 1 : 0);
-    }
-
-    function getReductionSymbols(p) {
-      const counts = { "赤": 0, "白": 0, "青": 0, "紫": 0, "緑": 0, "黄": 0 };
-      (p.field || []).forEach(c => {
-        if (counts[c.color] !== undefined) counts[c.color] += 1;
-      });
-      return counts;
-    }
-
-    // 《真界放》およびコア数に基づくLv・BP判定
-    function calculateStandardCardStats(card, isSoulOnCard) {
-      const totalCores = (card.cores || 0) + (isSoulOnCard ? 1 : 0);
-      if (card.type === "ネクサス") {
-        const lv = (card.lv2C > 0 && totalCores >= card.lv2C) ? 2 : 1;
-        return { lv, bp: null, totalCores, shinkaihoActive: false };
-      }
-      // 《真界放》持ちの場合、ソウルコアが置かれていればコア総数に関わらずLv2達成
-      const shinkaihoActive = Boolean(card.shinkaiho && isSoulOnCard && totalCores >= 1);
-      const isLv2 = (card.lv2C > 0 && totalCores >= card.lv2C) || shinkaihoActive;
-      const lv = isLv2 ? 2 : 1;
-      const bp = isLv2 ? (card.lv2BP || card.lv1BP) : (card.lv1BP || 1000);
-      return { lv, bp, totalCores, shinkaihoActive };
-    }
-
-    // --- 6. 8ステップ進行＆先攻1ターン目制限 ---
-    window.setStep = function(stepName) {
-      if (isFirstTurnRestriction() && (stepName === "コア" || stepName === "アタック" || stepName === "第2メイン")) {
-        showToast(`先攻1ターン目は「${stepName}ステップ」が存在しません（自動スキップ）`, "warn");
-        return;
-      }
-      gameState.step = stepName;
-      syncState(`ステップ移動 → 【${stepName}】`);
-    };
-
-    window.executeCoreStep = function() {
-      if (isFirstTurnRestriction()) {
-        showToast("先攻1ターン目のコアステップはスキップされます", "warn");
-        return;
-      }
-      const me = getMe();
-      me.reserveCores += 1;
-      gameState.step = "コア";
-      syncState("コアステップ：ボイドからリザーブにコア+1");
-    };
-
-    window.executeDrawStep = function() {
-      const me = getMe();
-      if (me.deck.length === 0) {
-        showToast("デッキ切れです！", "error");
-        return;
-      }
-      me.hand.push(me.deck.shift());
-      gameState.step = "ドロー";
-      syncState("ドローステップ：1枚ドロー");
-    };
-
-    window.executeRefreshStep = function() {
-      const me = getMe();
-      const returned = me.trashCores;
-      me.reserveCores += returned;
-      me.trashCores = 0;
-      let soulBack = false;
-      if (me.soulCoreLoc === "trash") {
-        me.soulCoreLoc = "reserve";
-        soulBack = true;
-      }
-      // 重疲労は回復になり、疲労は回復になる (重疲労の1段階回復も考慮)
-      me.field.forEach(c => {
-        if (c.posture === "heavy") c.posture = "exhausted";
-        else c.posture = "ready";
-      });
-      gameState.step = "リフレッシュ";
-      syncState(`リフレッシュステップ：コア${returned}個${soulBack ? "+S" : ""}回収＆回復処理`);
-    };
-
-    window.endTurn = function() {
-      gameState.turnCount += 1;
-      gameState.turnOwner = gameState.turnOwner === "p1" ? "p2" : "p1";
-      gameState.step = "スタート";
-      if (matchMode === "solo") {
-        soloViewSide = gameState.turnOwner;
-      }
-      syncState(`ターンエンド → ターン${gameState.turnCount} (${gameState.turnOwner === "p1" ? "先攻P1" : "後攻P2"})`);
-    };
-
-    window.declareFlash = function() {
-      syncState("⚡【フラッシュタイミング】宣言！");
-    };
-
-    // --- リソース・マリガン操作 ---
-    window.mulliganHand = function() {
-      const me = getMe();
-      if (me.mulliganUsed) {
-        showToast("引き直し（マリガン）はゲーム開始時に1回のみ可能です", "warn");
-        return;
-      }
-      me.deck.push(...me.hand);
-      me.hand = [];
-      shuffleArray(me.deck);
-      for (let i = 0; i < 4 && me.deck.length > 0; i++) {
-        me.hand.push(me.deck.shift());
-      }
-      me.mulliganUsed = true;
-      syncState("初期手札4枚の引き直し（マリガン）を実行しました");
-    };
-
-    window.takeLifeDamage = function() {
-      const me = getMe();
-      if (me.life <= 0) return;
-      me.life -= 1;
-      me.reserveCores += 1;
-      syncState(`ライフ-1 (残ライフ:${me.life} / リザーブ+1)`);
-    };
-
-    window.adjustLife = function(delta) {
-      const me = getMe();
-      me.life = Math.max(0, me.life + delta);
-      syncState(`ライフ修正 (${delta > 0 ? "+" + delta : delta} → 残:${me.life})`);
-    };
-
-    window.voidBoost = function(amount) {
-      const me = getMe();
-      me.reserveCores += amount;
-      syncState(`ボイドからリザーブにコア+${amount}`);
-    };
-
-    window.moveReserveToTrash = function(amount) {
-      const me = getMe();
-      if (me.reserveCores >= amount) {
-        me.reserveCores -= amount;
-        me.trashCores += amount;
-        syncState(`リザーブからトラッシュへコア${amount}個移動`);
-      } else if (me.soulCoreLoc === "reserve") {
-        me.soulCoreLoc = "trash";
-        syncState("【ソウルコア】をトラッシュへ移動");
-      } else {
-        showToast("リザーブにコアがありません", "warn");
-      }
-    };
-
-    window.moveTrashToReserve = function(amount) {
-      const me = getMe();
-      if (me.trashCores >= amount) {
-        me.trashCores -= amount;
-        me.reserveCores += amount;
-        syncState(`トラッシュからリザーブへコア${amount}個回収`);
-      } else if (me.soulCoreLoc === "trash") {
-        me.soulCoreLoc = "reserve";
-        syncState("【ソウルコア】をリザーブへ回収");
-      } else {
-        showToast("トラッシュにコアがありません", "warn");
-      }
-    };
-
-    window.drawCards = function(count) {
-      const me = getMe();
-      if (me.deck.length === 0) {
-        showToast("デッキにカードがありません", "warn");
-        return;
-      }
-      me.hand.push(me.deck.shift());
-      syncState(`デッキから${count}枚ドロー`);
-    };
-
-    // --- 7. 手札アクション (《継召》・EXシンボル除外軽減対応) ---
-    window.openHandCardModal = function(handIdx) {
-      const me = getMe();
-      const card = me.hand[handIdx];
-      if (!card) return;
-      showCardDetail(card);
-
-      const symbols = getReductionSymbols(me);
-      const fieldSym = symbols[card.color] || 0;
-      const exTrashCards = me.trash.filter(c => c.exSymbol);
-      const normalRed = Math.min(card.red || 0, fieldSym);
-      const normalCost = Math.max(0, card.cost - normalRed);
-
-      // EXシンボルを1枚除外した場合の追加軽減計算
-      const canUseEx = exTrashCards.length > 0 && (card.red > normalRed);
-      const exCost = Math.max(0, card.cost - Math.min(card.red || 0, fieldSym + 1));
-
-      document.getElementById("modalCardTitle").textContent = `${card.name} (${card.type} / ${card.color})`;
-      document.getElementById("modalCardBody").innerHTML = `
-        <div class="bg-slate-900 p-2 rounded border border-slate-700 space-y-1">
-          <div>コスト: <strong>${card.cost}</strong> / 軽減シンボル: <strong>${card.red}</strong> (盤面${card.color}シンボル: ${fieldSym}個)</div>
-          <div class="text-sky-300 font-bold">通常支払いコスト: ${normalCost} コア (現在リザーブ: ${getTotalReserveCores(me)}個)</div>
-          ${exTrashCards.length > 0 ? `<div class="text-purple-300 text-[11px]">※トラッシュにEXシンボル持ちが ${exTrashCards.length}枚 あります</div>` : ""}
-          <p class="text-slate-300 pt-1 border-t border-slate-800">${card.effect || "効果なし"}</p>
-        </div>
-      `;
-
-      const btnBox = document.getElementById("modalActionButtons");
-      btnBox.innerHTML = "";
-
-      if (card.type === "スピリット" || card.type === "ネクサス") {
-        const needsCore = card.type === "スピリット";
-        const btnNormal = document.createElement("button");
-        btnNormal.className = "w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded text-xs";
-        btnNormal.textContent = needsCore
-          ? `通常召喚 (コスト${normalCost}支払 ＋ 維持コア1個配置)`
-          : `通常配置 (コスト${normalCost}支払)`;
-        btnNormal.onclick = () => playCardToField(handIdx, normalCost, needsCore, false);
-        btnBox.appendChild(btnNormal);
-
-        // EXシンボル除外による追加軽減（《継召》/EX軽減）ボタン
-        if (canUseEx) {
-          const btnEx = document.createElement("button");
-          btnEx.className = "w-full py-1.5 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded text-xs";
-          btnEx.textContent = `トラッシュのEXシンボル1枚を除外して軽減召喚/配置 (コスト${exCost}支払)`;
-          btnEx.onclick = () => playCardToField(handIdx, exCost, needsCore, true);
-          btnBox.appendChild(btnEx);
-        }
-
-        const btnFree = document.createElement("button");
-        btnFree.className = "w-full py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs";
-        btnFree.textContent = "効果でノーコスト召喚/配置する";
-        btnFree.onclick = () => playCardToField(handIdx, 0, needsCore, false);
-        btnBox.appendChild(btnFree);
-      } else if (card.type === "マジック") {
-        const btnMagic = document.createElement("button");
-        btnMagic.className = "w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs";
-        btnMagic.textContent = `マジックを使用する (コスト${normalCost}支払 → トラッシュへ)`;
-        btnMagic.onclick = () => playMagicCard(handIdx, normalCost, false);
-        btnBox.appendChild(btnMagic);
-
-        if (canUseEx) {
-          const btnExMagic = document.createElement("button");
-          btnExMagic.className = "w-full py-1.5 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded text-xs";
-          btnExMagic.textContent = `EXシンボル1枚除外で軽減使用 (コスト${exCost}支払)`;
-          btnExMagic.onclick = () => playMagicCard(handIdx, exCost, true);
-          btnBox.appendChild(btnExMagic);
-        }
-      }
-
-      const btnDiscard = document.createElement("button");
-      btnDiscard.className = "w-full py-1 bg-rose-900/80 hover:bg-rose-800 text-rose-200 rounded text-xs";
-      btnDiscard.textContent = "手札から破棄する (トラッシュへ)";
-      btnDiscard.onclick = () => {
-        const c = me.hand.splice(handIdx, 1)[0];
-        me.trash.push(c);
-        closeActionModal();
-        syncState(`手札から【${c.name}】を破棄しました`);
-      };
-      btnBox.appendChild(btnDiscard);
-
-      document.getElementById("actionModal").classList.remove("hidden");
-    };
-
-    window.closeActionModal = function() {
-      document.getElementById("actionModal").classList.add("hidden");
-    };
-
-    function payCoresFromReserve(p, cost) {
-      let rem = cost;
-      if (p.reserveCores >= rem) {
-        p.reserveCores -= rem;
-        p.trashCores += rem;
-        return true;
-      }
-      const usedNormal = p.reserveCores;
-      rem -= usedNormal;
-      if (rem === 1 && p.soulCoreLoc === "reserve") {
-        p.reserveCores = 0;
-        p.trashCores += usedNormal;
-        p.soulCoreLoc = "trash";
-        return true;
-      }
-      return false;
-    }
-
-    function exileOneExCardFromTrash(p) {
-      const idx = p.trash.findIndex(c => c.exSymbol);
-      if (idx === -1) return null;
-      const exiled = p.trash.splice(idx, 1)[0];
-      p.exile.push(exiled);
-      return exiled;
-    }
-
-    function playCardToField(handIdx, cost, needsCore, useExSymbol) {
-      const me = getMe();
-      const totalNeeded = cost + (needsCore ? 1 : 0);
-      if (getTotalReserveCores(me) < totalNeeded) {
-        showToast(`コアが足りません (必要:${totalNeeded}個 / リザーブ:${getTotalReserveCores(me)}個)`, "error");
-        return;
-      }
-      let exiledCard = null;
-      if (useExSymbol) {
-        exiledCard = exileOneExCardFromTrash(me);
-        if (!exiledCard) {
-          showToast("トラッシュにEXシンボル持ちカードがありません", "error");
-          return;
-        }
-      }
-      payCoresFromReserve(me, cost);
-
-      let placedCores = 0;
-      let soulOnThis = false;
-      if (needsCore) {
-        if (me.reserveCores >= 1) {
-          me.reserveCores -= 1;
-          placedCores = 1;
-        } else if (me.soulCoreLoc === "reserve") {
-          soulOnThis = true;
-        }
-      }
-
-      const card = me.hand.splice(handIdx, 1)[0];
-      if (soulOnThis) me.soulCoreLoc = card.uid;
-
-      me.field.push({
-        ...card,
-        cores: placedCores,
-        posture: "ready"
-      });
-      closeActionModal();
-      const exMsg = exiledCard ? ` (EX除外:【${exiledCard.name}】)` : "";
-      syncState(`【${card.name}】を${card.type === "スピリット" ? "召喚" : "配置"} (支払:${cost})${exMsg}`);
-    }
-
-    function playMagicCard(handIdx, cost, useExSymbol) {
-      const me = getMe();
-      if (getTotalReserveCores(me) < cost) {
-        showToast(`コアが足りません (必要:${cost}個)`, "error");
-        return;
-      }
-      let exiledCard = null;
-      if (useExSymbol) exiledCard = exileOneExCardFromTrash(me);
-      payCoresFromReserve(me, cost);
-      const card = me.hand.splice(handIdx, 1)[0];
-      me.trash.push(card);
-      closeActionModal();
-      const exMsg = exiledCard ? ` (EX除外:【${exiledCard.name}】)` : "";
-      syncState(`マジック【${card.name}】を使用 (支払:${cost})${exMsg}`);
-    }
-
-    // --- 8. フィールドカード操作 (回復/疲労/重疲労・コア移動・《真界放》ソウルコア) ---
-    window.cycleFieldCardPosture = function(fieldIdx) {
-      const me = getMe();
-      const card = me.field[fieldIdx];
-      if (!card) return;
-      // 回復(ready) -> 疲労(exhausted) -> 重疲労(heavy) -> 回復(ready)
-      const nextMap = { ready: "exhausted", exhausted: "heavy", heavy: "ready" };
-      const labelMap = { ready: "回復", exhausted: "疲労", heavy: "重疲労" };
-      card.posture = nextMap[card.posture || "ready"] || "ready";
-      showCardDetail(card);
-      syncState(`【${card.name}】を【${labelMap[card.posture]}】状態に変更`);
-    };
-
-    window.adjustFieldCardCore = function(event, fieldIdx, delta) {
-      event.stopPropagation();
-      const me = getMe();
-      const card = me.field[fieldIdx];
-      if (!card) return;
-
-      if (delta > 0) {
-        if (me.reserveCores > 0) {
-          me.reserveCores -= 1;
-          card.cores = (card.cores || 0) + 1;
-          syncState(`【${card.name}】にコア+1`);
-        } else if (me.soulCoreLoc === "reserve") {
-          me.soulCoreLoc = card.uid;
-          syncState(`【${card.name}】に【ソウルコア】を配置`);
-        } else {
-          showToast("リザーブにコアがありません", "warn");
-        }
-      } else {
-        if (card.cores > 0) {
-          card.cores -= 1;
-          me.reserveCores += 1;
-          syncState(`【${card.name}】からリザーブへコア1個移動`);
-        } else if (me.soulCoreLoc === card.uid) {
-          me.soulCoreLoc = "reserve";
-          syncState(`【${card.name}】の【ソウルコア】をリザーブへ戻しました`);
-        } else {
-          showToast("コアが乗っていません", "warn");
-        }
-      }
-    };
-
-    window.toggleSoulCoreOnFieldCard = function(event, fieldIdx) {
-      event.stopPropagation();
-      const me = getMe();
-      const card = me.field[fieldIdx];
-      if (!card) return;
-
-      if (me.soulCoreLoc === card.uid) {
-        me.soulCoreLoc = "reserve";
-        syncState(`【${card.name}】のソウルコアをリザーブへ戻しました`);
-      } else if (me.soulCoreLoc === "reserve") {
-        me.soulCoreLoc = card.uid;
-        const msg = card.shinkaiho ? `【${card.name}】にソウルコア配置 → 《真界放》Lv2有効！` : `【${card.name}】にソウルコアを移動`;
-        syncState(msg);
-      } else {
-        showToast("ソウルコアはリザーブにある時のみ直接配置できます", "warn");
-      }
-    };
-
-    window.destroyFieldCard = function(event, fieldIdx) {
-      event.stopPropagation();
-      const me = getMe();
-      const card = me.field.splice(fieldIdx, 1)[0];
-      if (!card) return;
-      if (card.cores > 0) me.reserveCores += card.cores;
-      if (me.soulCoreLoc === card.uid) me.soulCoreLoc = "reserve";
-      me.trash.push(card);
-      syncState(`【${card.name}】が破壊/消滅しトラッシュへ (コアはリザーブへ)`);
-    };
-
-    // --- 9. トラッシュ＆除外エリアモーダル ---
-    window.openTrashModal = function() {
-      const me = getMe();
-      const list = document.getElementById("trashModalList");
-      if (me.trash.length === 0) {
-        list.innerHTML = `<p class="text-slate-400">トラッシュにカードはありません。</p>`;
-      } else {
-        list.innerHTML = me.trash.map((c, idx) => `
-          <div class="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700">
-            <div class="truncate pr-2">
-              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}</span>
-              ${c.exSymbol ? `<span class="px-1 py-0.5 rounded text-[9px] bg-purple-800 text-purple-200 font-bold">EX</span>` : ""}
-              <strong class="ml-1">${c.name}</strong> <span class="text-slate-400">(${c.type})</span>
-            </div>
-            <div class="flex gap-1 flex-shrink-0">
-              ${c.exSymbol ? `<button onclick="exileTrashCardByIndex(${idx})" class="px-2 py-1 bg-purple-700 hover:bg-purple-600 text-white rounded text-[10px] font-bold">EX除外</button>` : ""}
-              <button onclick="recoverFromTrash(${idx})" class="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-[10px] font-bold">手札回収</button>
-            </div>
-          </div>
-        `).join("");
-      }
-      document.getElementById("trashModal").classList.remove("hidden");
-    };
-
-    window.exileTrashCardByIndex = function(trashIdx) {
-      const me = getMe();
-      const card = me.trash.splice(trashIdx, 1)[0];
-      if (card) {
-        me.exile.push(card);
-        openTrashModal();
-        syncState(`トラッシュのEXシンボル【${card.name}】を除外エリアへ送りました`);
-      }
-    };
-
-    window.recoverFromTrash = function(trashIdx) {
-      const me = getMe();
-      const card = me.trash.splice(trashIdx, 1)[0];
-      if (card) {
-        me.hand.push(card);
-        openTrashModal();
-        syncState(`トラッシュから【${card.name}】を手札に回収`);
-      }
-    };
-
-    window.openExileModal = function(targetSide) {
-      const target = targetSide === "me" ? getMe() : getOpp();
-      document.getElementById("exileModalTitle").textContent = `${targetSide === "me" ? "自分" : "相手"}の除外エリア (${(target.exile || []).length}枚 / 公開情報)`;
-      const list = document.getElementById("exileModalList");
-      if (!target.exile || target.exile.length === 0) {
-        list.innerHTML = `<p class="text-slate-400">除外エリアにカードはありません。</p>`;
-      } else {
-        list.innerHTML = target.exile.map(c => `
-          <div class="bg-slate-900 p-2 rounded border border-purple-800/60">
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}</span>
-            <strong class="ml-1 text-purple-200">${c.name}</strong> <span class="text-slate-400">(${c.type} / コスト${c.cost})</span>
-            <p class="text-[11px] text-slate-400 mt-0.5">${c.effect || ""}</p>
-          </div>
-        `).join("");
-      }
-      document.getElementById("exileModal").classList.remove("hidden");
-    };
-
-    // --- 10. チャット＆ログ ---
-    window.handleChatSubmit = function(e) {
-      e.preventDefault();
-      const input = document.getElementById("chatInput");
-      const msg = input.value.trim();
-      if (!msg) return;
-      input.value = "";
-      syncState(`💬「${msg}」`);
-    };
-
-    window.sendQuickChat = function(msg) {
-      syncState(`💬「${msg}」`);
-    };
-
-    // --- 11. 盤面描画 ---
-    window.showCardDetail = function(card) {
-      if (!card) return;
-      const tags = [];
-      if (card.shinkaiho) tags.push("《真界放》");
-      if (card.exSymbol) tags.push("EXシンボル");
-      document.getElementById("detailCardMeta").textContent = `${card.type} / ${card.color} / C${card.cost}(軽${card.red})`;
-
-      let lvLine = "";
-      if (card.type !== "マジック") {
-        lvLine = `<div class="text-[10px] text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded">
-          Lv1(${card.lv1C}): ${card.type === "ネクサス" ? "配置" : "BP " + card.lv1BP}
-          ${card.lv2C > 0 ? ` / Lv2(${card.lv2C}${card.shinkaiho ? "orS" : ""}): ${card.type === "ネクサス" ? "Lv2" : "BP " + card.lv2BP}` : ""}
-        </div>`;
-      }
-      document.getElementById("cardDetailContent").innerHTML = `
-        <div class="font-bold text-xs text-amber-300">${card.name} <span class="text-purple-300 text-[10px]">${tags.join(" ")}</span></div>
-        ${lvLine}
-        <p class="text-slate-200 leading-snug pt-0.5">${card.effect || ""}</p>
-      `;
-    };
-
-    function renderBattleBoard() {
-      const me = getMe();
-      const opp = getOpp();
-      if (!me) return;
-
-      document.getElementById("displayRoomId").textContent = roomId || "----";
-      document.getElementById("turnCount").textContent = gameState.turnCount;
-
-      const curRole = activeRole();
-      const isMyTurn = gameState.turnOwner === curRole;
-      const turnLabel = document.getElementById("turnOwnerLabel");
-      turnLabel.textContent = isMyTurn ? (matchMode === "solo" ? `操作中:${curRole.toUpperCase()}` : "自分ターン") : "相手ターン";
-      turnLabel.className = isMyTurn ? "font-bold text-sky-400" : "font-bold text-rose-400";
-
-      // ソロ用視点切替ボタン
-      document.getElementById("btnSoloSwitchSide").classList.toggle("hidden", matchMode !== "solo");
-
-      // 先攻1ターン目制限表示＆ボタン制御
-      const restricted = isFirstTurnRestriction();
-      document.getElementById("firstTurnRuleBadge").classList.toggle("hidden", !restricted);
-      ["btnStepCore", "btnStepAttack", "btnStepMain2"].forEach(id => {
-        const el = document.getElementById(id);
-        el.disabled = restricted;
-        el.classList.toggle("opacity-40", restricted);
-        el.classList.toggle("cursor-not-allowed", restricted);
-      });
-
-      document.querySelectorAll(".step-btn").forEach(btn => {
-        const active = btn.dataset.step === gameState.step;
-        btn.className = `step-btn px-1.5 py-0.5 rounded text-[10px] font-bold ${
-          active ? "bg-amber-500 text-slate-950" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-        } ${btn.disabled ? "opacity-40 cursor-not-allowed" : ""}`;
-      });
-
-      // --- 相手エリア ---
-      if (opp && opp.joined) {
-        document.getElementById("oppStatusBadge").textContent = matchMode === "solo" ? `相手側 (${curRole === "p1" ? "P2" : "P1"})` : "接続中";
-        document.getElementById("oppLife").textContent = opp.life;
-        document.getElementById("oppReserve").textContent = getTotalReserveCores(opp);
-        document.getElementById("oppSoulLoc").textContent = `S:${opp.soulCoreLoc === "reserve" ? "リザーブ" : opp.soulCoreLoc === "trash" ? "トラッシュ" : "盤面"}`;
-        document.getElementById("oppTrashCount").textContent = (opp.trash || []).length;
-        document.getElementById("oppTrashCores").textContent = opp.trashCores || 0;
-        document.getElementById("oppExileCount").textContent = (opp.exile || []).length;
-        document.getElementById("oppHandCount").textContent = (opp.hand || []).length;
-        document.getElementById("oppDeckCount").textContent = (opp.deck || []).length;
-
-        const oppFieldBox = document.getElementById("oppFieldCards");
-        if (!opp.field || opp.field.length === 0) {
-          oppFieldBox.innerHTML = `<span class="text-slate-600 text-[11px]">相手フィールドにカードはありません</span>`;
-        } else {
-          oppFieldBox.innerHTML = opp.field.map(c => {
-            const hasSoul = opp.soulCoreLoc === c.uid;
-            const stats = calculateStandardCardStats(c, hasSoul);
-            const pClass = c.posture === "heavy" ? "state-heavy-exhausted border-purple-500" : c.posture === "exhausted" ? "state-exhausted border-rose-500" : "border-slate-600";
-            const pText = c.posture === "heavy" ? "重疲労" : c.posture === "exhausted" ? "疲労" : "回復";
-            return `
-              <div onmouseenter='showCardDetail(${JSON.stringify(c).replace(/'/g, "&#39;")})'
-                   class="w-36 flex-shrink-0 bg-slate-800 border-2 ${pClass} rounded p-1 text-[10px] cursor-pointer">
-                <div class="flex justify-between items-center">
-                  <span class="px-1 rounded text-[9px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}</span>
-                  <span class="font-bold ${stats.shinkaihoActive ? 'text-orange-400' : 'text-amber-300'}">Lv${stats.lv}${stats.shinkaihoActive ? '真' : ''} ${stats.bp ? stats.bp : ''}</span>
-                </div>
-                <div class="font-bold truncate mt-0.5 text-slate-100">${c.name}</div>
-                <div class="flex justify-between items-center mt-0.5 text-[9px] text-sky-300">
-                  <span>コア:${stats.totalCores} ${hasSoul ? '<span class="soul-core-badge px-1 rounded">S</span>' : ''}</span>
-                  <span class="text-slate-400">${pText}</span>
-                </div>
-              </div>
-            `;
-          }).join("");
-        }
-      }
-
-      // --- 自分エリア ---
-      document.getElementById("myLife").textContent = me.life;
-      document.getElementById("myReserve").textContent = me.reserveCores;
-      document.getElementById("mySoulReserveBadge").classList.toggle("hidden", me.soulCoreLoc !== "reserve");
-      document.getElementById("myTrashCount").textContent = me.trash.length;
-      document.getElementById("myTrashCores").textContent = me.trashCores;
-      document.getElementById("mySoulTrashBadge").classList.toggle("hidden", me.soulCoreLoc !== "trash");
-      document.getElementById("myExileCount").textContent = (me.exile || []).length;
-      document.getElementById("myDeckCount").textContent = me.deck.length;
-      document.getElementById("myHandCount").textContent = me.hand.length;
-
-      const btnMulligan = document.getElementById("btnMulligan");
-      btnMulligan.disabled = Boolean(me.mulliganUsed);
-      btnMulligan.textContent = me.mulliganUsed ? "済" : "引き直し";
-
-      const syms = getReductionSymbols(me);
-      const activeSyms = Object.entries(syms).filter(([, v]) => v > 0).map(([k, v]) => `${k}×${v}`).join(" ");
-      document.getElementById("myReductionSummary").textContent = `軽減: ${activeSyms || "なし"}`;
-
-      const exTrashCount = me.trash.filter(c => c.exSymbol).length;
-      document.getElementById("myExileReadyBadge").textContent = `トラッシュEX: ${exTrashCount}枚`;
-
-      // 自分フィールド描画
-      const myFieldBox = document.getElementById("myFieldCards");
-      if (me.field.length === 0) {
-        myFieldBox.innerHTML = `<span class="text-slate-600 text-[11px]">手札からスピリット・ネクサスを召喚/配置してください</span>`;
-      } else {
-        myFieldBox.innerHTML = me.field.map((c, idx) => {
-          const hasSoul = me.soulCoreLoc === c.uid;
-          const stats = calculateStandardCardStats(c, hasSoul);
-          const zeroCore = (c.type === "スピリット" && stats.totalCores === 0);
-          const pClass = zeroCore
-            ? "border-rose-600"
-            : c.posture === "heavy"
-            ? "state-heavy-exhausted border-purple-500"
-            : c.posture === "exhausted"
-            ? "state-exhausted border-amber-500"
-            : "border-sky-600";
-          const pLabel = c.posture === "heavy" ? "重疲労" : c.posture === "exhausted" ? "疲労" : "回復";
-
-          return `
-            <div onclick="cycleFieldCardPosture(${idx})"
-                 onmouseenter='showCardDetail(${JSON.stringify(c).replace(/'/g, "&#39;")})'
-                 class="w-40 flex-shrink-0 bg-slate-800 border-2 ${pClass} rounded p-1 text-[10px] cursor-pointer flex flex-col justify-between">
-              <div>
-                <div class="flex justify-between items-center">
-                  <span class="px-1 rounded text-[9px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}</span>
-                  <span class="font-bold ${zeroCore ? 'text-rose-400' : stats.shinkaihoActive ? 'text-orange-400' : 'text-amber-300'}">
-                    ${zeroCore ? 'コア0' : `Lv${stats.lv}${stats.shinkaihoActive ? '《真》' : ''} ${stats.bp ? stats.bp : ''}`}
-                  </span>
-                </div>
-                <div class="font-bold truncate mt-0.5 text-white">${c.name}</div>
-              </div>
-              <div class="mt-1 pt-0.5 border-t border-slate-700 flex items-center justify-between">
-                <div class="flex items-center gap-0.5">
-                  <button onclick="adjustFieldCardCore(event, ${idx}, -1)" class="px-1.5 bg-slate-700 hover:bg-slate-600 rounded font-bold">-</button>
-                  <span class="px-1 font-bold text-sky-300">${stats.totalCores}</span>
-                  <button onclick="adjustFieldCardCore(event, ${idx}, 1)" class="px-1.5 bg-sky-700 hover:bg-sky-600 rounded font-bold">+</button>
-                </div>
-                <span class="text-[9px] text-slate-400">${pLabel}</span>
-                <div class="flex items-center gap-0.5">
-                  <button onclick="toggleSoulCoreOnFieldCard(event, ${idx})" title="ソウルコア移動(《真界放》)" class="px-1 rounded text-[9px] font-bold ${hasSoul ? 'soul-core-badge' : 'bg-slate-700 text-slate-400'}">S</button>
-                  <button onclick="destroyFieldCard(event, ${idx})" title="破壊/消滅" class="px-1 bg-rose-900 hover:bg-rose-700 text-rose-200 rounded text-[9px]">破棄</button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join("");
-      }
-
-      // 自分手札描画
-      const myHandBox = document.getElementById("myHandCards");
-      myHandBox.innerHTML = me.hand.map((c, idx) => {
-        const red = Math.min(c.red || 0, syms[c.color] || 0);
-        const pay = Math.max(0, c.cost - red);
-        return `
-          <div onclick="openHandCardModal(${idx})"
-               onmouseenter='showCardDetail(${JSON.stringify(c).replace(/'/g, "&#39;")})'
-               class="w-36 flex-shrink-0 bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-amber-400 rounded p-1 cursor-pointer flex flex-col justify-between">
-            <div>
-              <div class="flex justify-between items-center">
-                <span class="px-1 rounded text-[9px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}・${c.type.slice(0,2)}</span>
-                <span class="text-[10px] font-bold text-amber-300">C${c.cost}→<strong class="text-emerald-400">${pay}</strong></span>
-              </div>
-              <div class="font-bold text-[11px] truncate mt-0.5 text-white">${c.name}</div>
-            </div>
-            <div class="flex items-center gap-1 mt-0.5">
-              ${c.shinkaiho ? `<span class="px-1 rounded bg-orange-900 text-amber-200 text-[9px] font-bold">真界放</span>` : ""}
-              ${c.exSymbol ? `<span class="px-1 rounded bg-purple-900 text-purple-200 text-[9px] font-bold">EXシンボル</span>` : ""}
-            </div>
-            <div class="text-[9px] text-slate-400 truncate">${c.effect || ""}</div>
-          </div>
-        `;
-      }).join("");
-
-      // ログ描画
-      const logBox = document.getElementById("battleLogList");
-      logBox.innerHTML = (gameState.logs || []).map(l =>
-        `<div class="text-slate-300 leading-tight"><span class="text-slate-500">[${l.time}]</span> ${l.text}</div>`
-      ).join("");
-      logBox.scrollTop = logBox.scrollHeight;
-    }
-
-    // --- 12. スタンダード デッキビルダー (40枚以上 / 同名最大3枚制限) ---
-    function renderDeckEditor() {
-      const sel = document.getElementById("editorDeckSelect");
-      sel.innerHTML = savedDecks.map((d, idx) => `<option value="${idx}" ${idx === currentEditorDeckIndex ? 'selected' : ''}>${d.name}</option>`).join("");
-      loadSelectedDeckToEditor();
-      renderCardPool();
-    }
-
-    window.loadSelectedDeckToEditor = function() {
-      const sel = document.getElementById("editorDeckSelect");
-      currentEditorDeckIndex = parseInt(sel.value || "0", 10);
-      const deck = savedDecks[currentEditorDeckIndex];
-      if (!deck) return;
-
-      document.getElementById("editorDeckName").value = deck.name;
-      const counts = {};
-      deck.cards.forEach(cid => counts[cid] = (counts[cid] || 0) + 1);
-
-      const overLimit = Object.values(counts).some(cnt => cnt > 3);
-      const isValidCount = deck.cards.length >= 40;
-      const statusEl = document.getElementById("deckValidationStatus");
-      if (isValidCount && !overLimit) {
-        statusEl.innerHTML = `<span class="text-emerald-400">✔ スタンダード規定適合 (${deck.cards.length}枚)</span>`;
-      } else {
-        statusEl.innerHTML = `<span class="text-rose-400">⚠ 要調整: ${deck.cards.length}枚 (40枚以上・同名3枚まで)</span>`;
-      }
-
-      const container = document.getElementById("editorDeckCards");
-      const entries = Object.entries(counts);
-      if (entries.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-500">右側のカードプールからカードを追加してください。</p>`;
-        return;
-      }
-
-      container.innerHTML = entries.map(([cid, cnt]) => {
-        const card = cardPool.find(c => c.id === cid) || { name: cid, color: "赤", type: "スピリット", cost: 0 };
-        return `
-          <div class="flex items-center justify-between bg-slate-800 px-2 py-1 rounded border border-slate-700 text-xs">
-            <div class="flex items-center gap-1.5 truncate">
-              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${getAttrBadgeClass(card.color)}">${card.color}</span>
-              <span class="text-slate-400">[${card.type.slice(0,2)}]</span>
-              <strong class="text-white truncate">${card.name}</strong>
-              <span class="text-amber-300 text-[10px]">(C${card.cost})</span>
-            </div>
-            <div class="flex items-center gap-1 flex-shrink-0">
-              <button onclick="changeDeckCardCount('${cid}', -1)" class="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded font-bold">-</button>
-              <span class="w-6 text-center font-bold ${cnt > 3 ? 'text-rose-400' : 'text-amber-400'}">${cnt}枚</span>
-              <button onclick="changeDeckCardCount('${cid}', 1)" class="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded font-bold">+</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-    };
-
-    window.changeDeckCardCount = function(cid, delta) {
-      const deck = savedDecks[currentEditorDeckIndex];
-      if (!deck) return;
-      if (delta > 0) {
-        const cur = deck.cards.filter(id => id === cid).length;
-        if (cur >= 3) {
-          showToast("スタンダード規定により同名カードは最大3枚までです", "warn");
-          return;
-        }
-        deck.cards.push(cid);
-      } else {
-        const idx = deck.cards.indexOf(cid);
-        if (idx !== -1) deck.cards.splice(idx, 1);
-      }
-      loadSelectedDeckToEditor();
-    };
-
-    window.createNewDeck = function() {
-      savedDecks.push({ id: "std_custom_" + Date.now(), name: `新規スタンダードデッキ #${savedDecks.length + 1}`, cards: [] });
-      currentEditorDeckIndex = savedDecks.length - 1;
-      renderDeckEditor();
-    };
-
-    window.saveCurrentEditorDeck = function() {
-      const deck = savedDecks[currentEditorDeckIndex];
-      if (!deck) return;
-      deck.name = document.getElementById("editorDeckName").value.trim() || "名称未設定デッキ";
-      localStorage.setItem("bs_std_decks", JSON.stringify(savedDecks));
-      renderDeckEditor();
-      refreshLobbyDeckSelect();
-      showToast(`「${deck.name}」をブラウザに保存しました`, "success");
-    };
-
-    function renderCardPool() {
-      const list = document.getElementById("cardPoolList");
-      list.innerHTML = cardPool.map(c => `
-        <div onclick="changeDeckCardCount('${c.id}', 1)" class="flex items-center justify-between bg-slate-900 hover:bg-slate-700 p-1.5 rounded border border-slate-700 cursor-pointer text-xs">
-          <div class="truncate pr-2">
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${getAttrBadgeClass(c.color)}">${c.color}</span>
-            <strong class="ml-1 text-slate-100">${c.name}</strong>
-            <span class="text-slate-400 text-[10px]">(${c.type} C${c.cost})</span>
-          </div>
-          <span class="text-emerald-400 font-bold text-[10px] flex-shrink-0">+ 追加</span>
-        </div>
-      `).join("");
-    }
-
-    window.registerCustomCard = function() {
-      const name = document.getElementById("newCardName").value.trim();
-      if (!name) {
-        showToast("カード名を入力してください", "warn");
-        return;
-      }
-      const newCard = {
-        id: "custom_" + Date.now(),
-        name,
-        type: document.getElementById("newCardType").value,
-        color: document.getElementById("newCardColor").value,
-        cost: parseInt(document.getElementById("newCardCost").value || "0", 10),
-        red: parseInt(document.getElementById("newCardRed").value || "0", 10),
-        shinkaiho: document.getElementById("newCardShinkaiho").checked,
-        exSymbol: document.getElementById("newCardExSymbol").checked,
-        lv1C: parseInt(document.getElementById("newCardLv1C").value || "1", 10),
-        lv1BP: parseInt(document.getElementById("newCardLv1BP").value || "1000", 10),
-        lv2C: parseInt(document.getElementById("newCardLv2C").value || "0", 10),
-        lv2BP: parseInt(document.getElementById("newCardLv2BP").value || "0", 10),
-        effect: document.getElementById("newCardEffect").value.trim()
-      };
-      cardPool.unshift(newCard);
-      const customList = cardPool.filter(c => c.id.startsWith("custom_"));
-      localStorage.setItem("bs_std_custom_cards", JSON.stringify(customList));
-
-      changeDeckCardCount(newCard.id, 1);
-      renderCardPool();
-      document.getElementById("newCardName").value = "";
-      showToast(`スタンダードカード「${name}」を登録しました`, "success");
-    };
-
-    window.exportDeckJson = function() {
-      const deck = savedDecks[currentEditorDeckIndex];
-      const exportObj = {
-        format: "BS_STANDARD_2026",
-        deckName: deck.name,
-        cards: deck.cards,
-        customCards: cardPool.filter(c => c.id.startsWith("custom_"))
-      };
-      const area = document.getElementById("deckJsonArea");
-      area.value = JSON.stringify(exportObj);
-      area.select();
-      document.execCommand("copy");
-      showToast("スタンダードデッキJSONをコピーしました", "success");
-    };
-
-    window.importDeckJson = function() {
-      try {
-        const parsed = JSON.parse(document.getElementById("deckJsonArea").value.trim());
-        if (!Array.isArray(parsed.cards)) throw new Error("Invalid format");
-        if (Array.isArray(parsed.customCards)) {
-          parsed.customCards.forEach(cc => {
-            if (["スピリット", "ネクサス", "マジック"].includes(cc.type) && !cardPool.some(ex => ex.id === cc.id)) {
-              cardPool.push(cc);
-            }
-          });
-        }
-        savedDecks.push({ id: "imp_" + Date.now(), name: parsed.deckName || "インポートデッキ", cards: parsed.cards });
-        localStorage.setItem("bs_std_decks", JSON.stringify(savedDecks));
-        currentEditorDeckIndex = savedDecks.length - 1;
-        renderDeckEditor();
-        refreshLobbyDeckSelect();
-        showToast("デッキJSONを読み込みました", "success");
-      } catch (e) {
-        showToast("JSONの形式が正しくありません", "error");
-      }
-    };
-
-    window.addEventListener("DOMContentLoaded", () => {
-      refreshLobbyDeckSelect();
-      initFirebase();
-    });
-  </script>
+  `;
+  document.getElementById("modalBg").classList.remove("hidden");
+}
+
+function addNewCard() {
+  const id = document.getElementById("ncId").value.trim() || ("CUSTOM-" + Date.now());
+  const name = document.getElementById("ncName").value.trim();
+  if(!name) return alert("カード名を入力してください");
+  cardDB.unshift({
+    id, name,
+    type: document.getElementById("ncType").value,
+    attr: document.getElementById("ncAttr").value,
+    cost: Number(document.getElementById("ncCost").value)||0,
+    red: Number(document.getElementById("ncRed").value)||0,
+    white: Number(document.getElementById("ncWhite").value)||0,
+    bp1: Number(document.getElementById("ncBp1").value)||0,
+    bp2: Number(document.getElementById("ncBp2").value)||0,
+    lv2c: 3, keyword: "",
+    text: document.getElementById("ncText").value
+  });
+  saveStorage();
+  closeModal();
+  renderDeckBuilder();
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify({ cardDB, decks, cardImages })], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "bs_standard_backup.json";
+  a.click();
+}
+
+function importData(ev) {
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      if(obj.cardDB) cardDB = obj.cardDB;
+      if(obj.decks) decks = obj.decks;
+      if(obj.cardImages) cardImages = obj.cardImages;
+      saveStorage();
+      refreshDeckSelectors();
+      renderDeckBuilder();
+      alert("JSONデータを読み込みました！");
+    } catch(err) { alert("JSONファイルの形式が正しくありません。"); }
+  };
+  reader.readAsText(file);
+}
+
+initStorage();
+</script>
 </body>
 </html>
