@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BS STANDARD オンライン対戦シミュレーター</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #334155; --border: #475569;
+    --text: #f8fafc; --muted: #94a3b8; --accent: #3b82f6; --danger: #ef4444;
+    --success: #10b981; --warn: #f59e0b;
+    --red: #dc2626; --green: #16a34a; --white: #e2e8f0; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.4; overflow-x: hidden; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 6px 10px; font-weight: 600; font-size: 12px; color: #fff; background: var(--panel2); transition: opacity .15s; touch-action: manipulation; }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); }
+  .btn-success { background: var(--success); }
+  .btn-danger { background: var(--danger); }
+  .btn-warn { background: var(--warn); color: #000; }
+  input, select, textarea { background: #0f172a; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  .hidden { display: none !important; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #020617; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .badge-gold { background: var(--warn); color: #000; }
+  .badge-dark { background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+  .badge-off { background: #7c2d12; color: #fed7aa; }
+  .nav-btns { display: flex; gap: 6px; }
+
+  .container { max-width: 960px; margin: 16px auto; padding: 0 12px; }
+  .card-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .step-bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); align-items: center; }
+  .step-item { padding: 4px 8px; border-radius: 4px; font-size: 11px; background: var(--bg); color: var(--muted); border: 1px solid transparent; }
+  .step-item.active { background: var(--accent); color: #fff; font-weight: 700; }
+  .step-item.skip { text-decoration: line-through; opacity: 0.45; }
+
+  .board-wrap { display: grid; grid-template-columns: 1fr 270px; gap: 8px; padding: 8px; max-width: 1440px; margin: 0 auto; }
+  @media (max-width: 900px) { .board-wrap { grid-template-columns: 1fr; } }
+
+  .zone-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+  .zone-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .stat-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill { background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .pill strong { color: #38bdf8; }
+
+  .field-grid { display: flex; flex-wrap: wrap; gap: 8px; min-height: 115px; align-items: flex-start; }
+  .hand-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; min-height: 120px; -webkit-overflow-scrolling: touch; }
+
+  .game-card { width: 124px; min-width: 124px; background: #0f172a; border: 2px solid var(--border); border-radius: 8px; padding: 5px; position: relative; transition: transform .15s; user-select: none; }
+  .game-card.exhausted { transform: rotate(90deg); margin: 18px 16px; border-color: var(--warn); }
+  .game-card.heavy { transform: rotate(180deg); border-color: var(--danger); }
+  .attr-赤 { border-top: 5px solid var(--red); }
+  .attr-白 { border-top: 5px solid var(--white); }
+  .attr-緑 { border-top: 5px solid var(--green); }
+  .attr-青 { border-top: 5px solid var(--blue); }
+
+  .card-img-box { width: 100%; height: 82px; background: #1e293b; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; cursor: pointer; }
+  .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+  .card-placeholder { font-size: 10px; color: var(--muted); text-align: center; padding: 4px; }
+  .card-title { font-weight: 700; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card-bp { font-size: 11px; font-weight: 700; color: #fbbf24; margin-top: 2px; }
+  .card-ctrls { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+  .card-ctrls button { padding: 3px 5px; font-size: 10px; flex: 1; }
+
+  .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+  .db-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .db-thumb { width: 100%; height: 115px; background: var(--panel); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .db-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 12px; }
+  .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .log-box { height: 220px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font-size: 11px; }
+  .log-line { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="badge badge-gold">BS STANDARD</span>
+    <span>バトルスピリッツ スタンダード</span>
+    <span class="badge badge-dark">26RSD01赤 / 26RSD04白</span>
+    <span id="netStatus" class="badge badge-off">ソロ / ローカルモード</span>
+  </div>
+  <div class="nav-btns">
+    <button class="btn-primary" onclick="showTab('lobby')">ロビー / 対戦</button>
+    <button onclick="showTab('deck')">デッキ構築 / カード画像</button>
+  </div>
+</header>
+
+<div id="view-lobby" class="container">
+  <div class="card-box">
+    <h2 style="color:#fbbf24; margin-bottom:4px;">スタンダード対戦ルーム設定</h2>
+    <p style="color:var(--muted); font-size:12px; margin-bottom:12px;">スピリット・ネクサス・マジックの3種構成 / 8ステップ制 / 《真界放》・EX軽減対応</p>
+
+    <div style="background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+      <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">使用デッキ選択（40枚以上・同名3枚まで）</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select id="deckSelect" style="flex:1; min-width:220px;"></select>
+        <button onclick="showTab('deck')">デッキ編集・画像設定</button>
+        <button class="btn-danger" onclick="forceResetDecks()">デッキ初期化</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#38bdf8; margin-bottom:4px;">1人用テストモード（ひとり回し）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">自分と相手（赤デッキ vs 白デッキなど）の両方の盤面を操作してデバッグ・練習を行います。</p>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px;">相手デッキ:</span>
+          <select id="cpuDeckSelect" style="flex:1;"></select>
+        </div>
+        <button class="btn-warn" style="width:100%; padding:10px;" onclick="startSoloGame()">1人用テストモード起動</button>
+      </div>
+
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <h3 style="color:#34d399; margin-bottom:4px;">同一端末2人対戦（対面プレイ）</h3>
+        <p style="color:var(--muted); font-size:11px; margin-bottom:10px;">手番ごとにプレイヤー視点を切り替えて1台のPC・タブレットで対戦します。</p>
+        <button class="btn-success" style="width:100%; padding:10px; margin-top:26px;" onclick="startSoloGame(true)">対面2人モード起動</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="view-game" class="hidden">
+  <div class="step-bar" id="stepBar"></div>
+  <div class="board-wrap">
+    <div>
+      <div class="zone-box" style="border-color:#475569;">
+        <div class="zone-header">
+          <div>
+            <strong id="oppLabel">相手プレイヤー (P2)</strong>
+            <span id="oppDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p2Life">5</strong> <button onclick="modStat('p2','life',-1)">-1</button><button onclick="modStat('p2','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p2Res">3</strong> <button onclick="modStat('p2','res',-1)">-1</button><button onclick="modStat('p2','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p2Soul">1</strong> <button onclick="toggleSoulReserve('p2')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p2Trash">0</strong> <button onclick="openTrashModal('p2')">見る</button></span>
+            <span class="pill">山札: <strong id="p2Deck">36</strong> <button onclick="drawCard('p2')">ドロー</button></span>
+            <span class="pill">手札: <strong id="p2HandCount">4</strong>枚</span>
+          </div>
+        </div>
+        <div class="field-grid" id="p2Field"></div>
+      </div>
+
+      <div class="zone-box" style="border-color:#3b82f6;">
+        <div class="zone-header">
+          <div>
+            <strong style="color:#60a5fa;" id="selfLabel">自分プレイヤー (P1)</strong>
+            <span id="selfDeckName" style="font-size:11px; color:var(--muted); margin-left:6px;"></span>
+          </div>
+          <div class="stat-pills">
+            <span class="pill">ライフ: <strong id="p1Life">5</strong> <button onclick="modStat('p1','life',-1)">-1</button><button onclick="modStat('p1','life',1)">+1</button></span>
+            <span class="pill">リザーブ: <strong id="p1Res">3</strong> <button onclick="modStat('p1','res',-1)">-1</button><button onclick="modStat('p1','res',1)">+1</button></span>
+            <span class="pill">ソウル: <strong id="p1Soul">1</strong> <button onclick="toggleSoulReserve('p1')">切替</button></span>
+            <span class="pill">トラッシュ: <strong id="p1Trash">0</strong> <button onclick="openTrashModal('p1')">見る</button></span>
+            <span class="pill">除外: <strong id="p1Exile">0</strong></span>
+            <span class="pill">山札: <strong id="p1Deck">36</strong></span>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <button class="btn-primary" onclick="drawCard('p1')">ドロー (+1枚)</button>
+          <button class="btn-success" onclick="coreStep('p1')">コア (+1個)</button>
+          <button class="btn-warn" onclick="refreshStep('p1')">リフレッシュ (全回復&コア回収)</button>
+          <button id="mulliganBtn" onclick="doMulligan('p1')">引き直し (初回1回)</button>
+          <button onclick="switchControlSide()">操作視点切替 (P1⇔P2)</button>
+          <button class="btn-danger" onclick="endTurn()">ターン終了</button>
+        </div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">フィールド（スピリット / ネクサス）</div>
+        <div class="field-grid" id="p1Field" style="margin-bottom:10px;"></div>
+
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">手札（タップで召喚・使用 / 拡大）</div>
+        <div class="hand-scroll" id="p1Hand"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="zone-box">
+        <div class="zone-header">
+          <strong>ターン情報・行動ログ</strong>
+          <button onclick="showTab('lobby')">終了</button>
+        </div>
+        <div style="margin-bottom:8px; font-size:12px;">
+          ターン: <strong id="turnNum">1</strong> | 手番: <strong id="turnSide">P1 (先攻)</strong>
+        </div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="view-deck" class="container hidden">
+  <div class="card-box">
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
+      <h2>デッキ構築 & カード画像設定</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        <label class="btn-primary" style="cursor:pointer; display:inline-block;">
+          ローカル画像一括読込
+          <input type="file" id="bulkImgInput" accept="image/*" multiple class="hidden" onchange="handleBulkImages(event)">
+        </label>
+        <button class="btn-success" onclick="exportData()">JSON出力(画像込)</button>
+        <label style="background:var(--panel2); padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">
+          JSON読込
+          <input type="file" accept=".json" class="hidden" onchange="importData(event)">
+        </label>
+        <button class="btn-danger" onclick="forceResetDecks()">初期デッキに戻す</button>
+      </div>
+    </div>
+
+    <div style="background:#020617; border:1px solid #38bdf8; border-radius:8px; padding:10px; margin-bottom:12px;">
+      <div style="font-weight:700; color:#38bdf8; margin-bottom:6px;">① 公式カード画像URL 自動参照（ダウンロード不要）</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        <input id="urlTemplateInput" style="flex:1; min-width:260px;" value="https://www.battlespirits.com/image/cardlist/{SET}/{ID}.jpg">
+        <select id="urlExtSelect" onchange="updateUrlExt()">
+          <option value="jpg">.jpg</option>
+          <option value="png">.png</option>
+          <option value="webp">.webp</option>
+        </select>
+        <button class="btn-warn" onclick="applyAutoUrls()">全カードにURLを一括適用</button>
+        <button onclick="clearAllImages()">画像URLを全クリア</button>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--bg); padding:10px; border-radius:8px; margin-bottom:10px;">
+      <span>編集デッキ:</span>
+      <select id="editDeckSelect" onchange="renderDeckBuilder()"></select>
+      <span id="deckCountBadge" class="badge badge-gold">40枚</span>
+      <button class="btn-primary" onclick="openNewCardModal()">＋ 新規カード追加</button>
+    </div>
+
+    <div class="db-grid" id="dbGrid"></div>
+  </div>
+</div>
+
+<div id="modalBg" class="modal-bg hidden" onclick="if(event.target===this) closeModal()">
+  <div class="modal-box" id="modalContent"></div>
+</div>
+
+<script>
+const STEPS = ["スタート", "コア", "ドロー", "リフレッシュ", "第1メイン", "アタック", "第2メイン", "エンド"];
+
+const DEFAULT_CARDS = [
+  { id:"26RSD01-001", name:"ムーシャッコ", type:"スピリット", attr:"赤", cost:1, red:1, white:0, bp1:2000, bp2:4000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、BP4000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-002", name:"ゲン＝ボー", type:"スピリット", attr:"赤", cost:2, red:1, white:0, bp1:3000, bp2:5000, lv2c:2, keyword:"", text:"召喚時：デッキ上から3枚オープンし系統：「風牙」1枚を手札に加える。" },
+  { id:"26RSD01-003", name:"ロワミーク", type:"スピリット", attr:"赤", cost:2, red:2, white:0, bp1:3000, bp2:6000, lv2c:3, keyword:"", text:"Lv1・Lv2：自分の赤のネクサスがある間、このスピリットをBP+2000する。" },
+  { id:"26RSD01-004", name:"ハーリア", type:"スピリット", attr:"赤", cost:3, red:2, white:0, bp1:4000, bp2:7000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、自分はデッキから1枚ドローする。" },
+  { id:"26RSD01-005", name:"グン＝ガタ", type:"スピリット", attr:"赤", cost:3, red:2, white:0, bp1:4000, bp2:6000, lv2c:2, keyword:"EX軽減", text:"トラッシュにあるこのカードはEX軽減シンボル(赤)として除外できる。" },
+  { id:"26RSD01-006", name:"キュペル", type:"スピリット", attr:"赤", cost:4, red:2, white:0, bp1:5000, bp2:8000, lv2c:3, keyword:"", text:"召喚時：BP5000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-007", name:"グライファー", type:"スピリット", attr:"赤", cost:4, red:3, white:0, bp1:5000, bp2:9000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、相手のネクサス1つを破壊できる。" },
+  { id:"26RSD01-008", name:"セルタリウス", type:"スピリット", attr:"赤", cost:5, red:3, white:0, bp1:6000, bp2:10000, lv2c:3, keyword:"", text:"Lv2アタック時：BP7000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-009", name:"飛傑レウファルス", type:"スピリット", attr:"赤", cost:6, red:3, white:0, bp1:7000, bp2:12000, lv2c:3, keyword:"真界放", text:"《真界放》Lv2：アタック時、相手のライフのコア1個をリザーブに置く。" },
+  { id:"26RSD01-010", name:"最奥：風牙岩", type:"ネクサス", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:2, keyword:"真界放", text:"配置時：1枚ドロー。Lv2《真界放》：自分の赤スピリットすべてをBP+2000する。" },
+  { id:"26RSD01-011", name:"浮遊岩域", type:"ネクサス", attr:"赤", cost:2, red:1, white:0, bp1:0, bp2:0, lv2c:2, keyword:"EX軽減", text:"自分のアタックステップ開始時、自分のスピリット1体をBP+3000する。" },
+  { id:"26RSD01-012", name:"ブレイククロー", type:"マジック", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：BP6000以下の相手スピリット1体を破壊する。" },
+  { id:"26RSD01-013", name:"オフェリングドロー", type:"マジック", attr:"赤", cost:3, red:2, white:0, bp1:0, bp2:0, lv2c:0, keyword:"EX軽減", text:"メイン：自分はデッキから2枚ドローする。" },
+  { id:"26RSD01-014", name:"フレイムハリケーン", type:"マジック", attr:"赤", cost:5, red:3, white:0, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：BP10000以下の相手スピリットすべてを破壊する。" },
+  { id:"26RSD01-X01", name:"飛赫レンシス", type:"スピリット", attr:"赤", cost:7, red:4, white:0, bp1:9000, bp2:15000, lv2c:3, keyword:"真界放", text:"【Xレア】《真界放》Lv2アタック時：BP12000以下1体を破壊し回復する。" },
+  { id:"26RSD01-X02", name:"飛剛アクライ", type:"スピリット", attr:"赤", cost:6, red:3, white:0, bp1:8000, bp2:13000, lv2c:3, keyword:"真界放", text:"【Xレア】召喚時：BP8000以下2体を破壊。《真界放》Lv2：ダブルシンボル。" },
+
+  { id:"26RSD04-001", name:"アトゥン", type:"スピリット", attr:"白", cost:1, red:0, white:1, bp1:2000, bp2:4000, lv2c:2, keyword:"", text:"Lv1・Lv2：相手のアタックステップ中、このスピリットをBP+2000する。" },
+  { id:"26RSD04-002", name:"ノンリル", type:"スピリット", attr:"白", cost:2, red:0, white:1, bp1:3000, bp2:5000, lv2c:2, keyword:"EX軽減", text:"召喚時：デッキ上から3枚オープンし系統：「鉱人」1枚を手札に加える。" },
+  { id:"26RSD04-003", name:"アーシヌス", type:"スピリット", attr:"白", cost:2, red:0, white:2, bp1:3000, bp2:6000, lv2c:3, keyword:"", text:"ブロック時：このスピリットをBP+3000する。" },
+  { id:"26RSD04-004", name:"重爪フォークロアー", type:"スピリット", attr:"白", cost:3, red:0, white:2, bp1:4000, bp2:7000, lv2c:3, keyword:"", text:"Lv1・Lv2：このスピリットは相手の効果で破壊されない。" },
+  { id:"26RSD04-005", name:"チムニルガ", type:"スピリット", attr:"白", cost:3, red:0, white:2, bp1:4000, bp2:6000, lv2c:2, keyword:"EX軽減", text:"トラッシュにあるこのカードはEX軽減シンボル(白)として除外できる。" },
+  { id:"26RSD04-006", name:"ダビティ", type:"スピリット", attr:"白", cost:4, red:0, white:2, bp1:5000, bp2:8000, lv2c:3, keyword:"", text:"召喚時：相手のスピリット1体を手札に戻す。" },
+  { id:"26RSD04-007", name:"ジャンクス", type:"スピリット", attr:"白", cost:4, red:0, white:3, bp1:5000, bp2:9000, lv2c:3, keyword:"", text:"ブロック時：バトル終了時、このスピリットは回復する。" },
+  { id:"26RSD04-008", name:"豪腕アナトマ", type:"スピリット", attr:"白", cost:5, red:0, white:3, bp1:6000, bp2:10000, lv2c:3, keyword:"", text:"Lv2アタック/ブロック時：コスト5以下の相手スピリット1体を手札に戻す。" },
+  { id:"26RSD04-009", name:"石切平原", type:"ネクサス", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:2, keyword:"", text:"配置時：ボイドからコア1個を置く。Lv2：自分の白スピリットすべてBP+2000。" },
+  { id:"26RSD04-010", name:"最奥：白天平", type:"ネクサス", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:2, keyword:"EX軽減", text:"Lv1・Lv2：自分の白スピリットが相手の効果で離れるとき疲労させて残せる。" },
+  { id:"26RSD04-011", name:"立石円陣", type:"ネクサス", attr:"白", cost:2, red:0, white:1, bp1:0, bp2:0, lv2c:2, keyword:"", text:"相手のアタックステップ中、自分の白スピリットすべてに【重装甲：赤/緑】を与える。" },
+  { id:"26RSD04-012", name:"ロックドリリング", type:"マジック", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：相手のスピリット1体を手札に戻す。" },
+  { id:"26RSD04-013", name:"ドリームローター", type:"マジック", attr:"白", cost:3, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"EX軽減", text:"メイン：自分はデッキから2枚ドローし、手札1枚を破棄する。" },
+  { id:"26RSD04-014", name:"ディフェンシブゲート", type:"マジック", attr:"白", cost:4, red:0, white:2, bp1:0, bp2:0, lv2c:0, keyword:"", text:"フラッシュ：このターンの間、自分のライフは相手スピリットのアタックで減らない。" },
+  { id:"26RSD04-X01", name:"陸舟マテンダー", type:"スピリット", attr:"白", cost:7, red:0, white:4, bp1:9000, bp2:15000, lv2c:3, keyword:"真界放", text:"【Xレア】《真界放》Lv2：アタック/ブロック時、相手2体を手札に戻し1体回復。" },
+  { id:"26RSD04-X02", name:"真門官サヴァトマ", type:"スピリット", attr:"白", cost:6, red:0, white:3, bp1:8000, bp2:13000, lv2c:3, keyword:"", text:"【Xレア】召喚時：相手2つを手札に戻す。Lv2：相手の効果を受けない。" }
+];
+
+const DEFAULT_DECKS = [
+  {
+    name: "【赤】バトスピエントリーデッキ 赫焔ノ風牙 [26RSD01]",
+    cards: {
+      "26RSD01-001":3, "26RSD01-002":3, "26RSD01-003":2, "26RSD01-004":3,
+      "26RSD01-005":3, "26RSD01-006":2, "26RSD01-007":2, "26RSD01-008":2,
+      "26RSD01-009":2, "26RSD01-010":3, "26RSD01-011":3, "26RSD01-012":3,
+      "26RSD01-013":3, "26RSD01-014":2, "26RSD01-X01":2, "26RSD01-X02":2
+    }
+  },
+  {
+    name: "【白】バトスピエントリーデッキ 白命ノ鉱人 [26RSD04]",
+    cards: {
+      "26RSD04-001":3, "26RSD04-002":3, "26RSD04-003":3, "26RSD04-004":2,
+      "26RSD04-005":3, "26RSD04-006":2, "26RSD04-007":2, "26RSD04-008":2,
+      "26RSD04-009":3, "26RSD04-010":3, "26RSD04-011":2, "26RSD04-012":3,
+      "26RSD04-013":3, "26RSD04-014":2, "26RSD04-X01":2, "26RSD04-X02":2
+    }
+  }
+];
+
+let cardDB = [];
+let decks = [];
+let cardImages = {};
+let game = null;
+let viewSide = "p1";
+
+function initStorage() {
+  try {
+    const savedCards = JSON.parse(localStorage.getItem("bs_std_cards_v2") || "null");
+    const savedDecks = JSON.parse(localStorage.getItem("bs_std_decks_v2") || "null");
+    const savedImgs = JSON.parse(localStorage.getItem("bs_std_imgs_v2") || "null");
+    cardDB = (Array.isArray(savedCards) && savedCards.length > 0) ? savedCards : JSON.parse(JSON.stringify(DEFAULT_CARDS));
+    decks = (Array.isArray(savedDecks) && savedDecks.length > 0) ? savedDecks : JSON.parse(JSON.stringify(DEFAULT_DECKS));
+    cardImages = (savedImgs && typeof savedImgs === "object") ? savedImgs : {};
+  } catch(e) {
+    cardDB = JSON.parse(JSON.stringify(DEFAULT_CARDS));
+    decks = JSON.parse(JSON.stringify(DEFAULT_DECKS));
+    cardImages = {};
+  }
+  saveStorage();
+  refreshDeckSelectors();
+}
+
+function saveStorage() {
+  try {
+    localStorage.setItem("bs_std_cards_v2", JSON.stringify(cardDB));
+    localStorage.setItem("bs_std_decks_v2", JSON.stringify(decks));
+    localStorage.setItem("bs_std_imgs_v2", JSON.stringify(cardImages));
+  } catch(e) {}
+}
+
+function forceResetDecks() {
+  cardDB = JSON.parse(JSON.stringify(DEFAULT_CARDS));
+  decks = JSON.parse(JSON.stringify(DEFAULT_DECKS));
+  saveStorage();
+  refreshDeckSelectors();
+  if(!document.getElementById("view-deck").classList.contains("hidden")) renderDeckBuilder();
+  alert("赤（26RSD01）・白（26RSD04）のデッキを再読み込みしました！");
+}
+
+function showTab(tab) {
+  document.getElementById("view-lobby").classList.toggle("hidden", tab !== "lobby");
+  document.getElementById("view-game").classList.toggle("hidden", tab !== "game");
+  document.getElementById("view-deck").classList.toggle("hidden", tab !== "deck");
+  if(tab === "deck") renderDeckBuilder();
+}
+
+function refreshDeckSelectors() {
+  const s1 = document.getElementById("deckSelect");
+  const s2 = document.getElementById("cpuDeckSelect");
+  const s3 = document.getElementById("editDeckSelect");
+  [s1, s2, s3].forEach((sel, idx) => {
+    if(!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = "";
+    decks.forEach((d, i) => {
+      const cnt = Object.values(d.cards || {}).reduce((a,b)=>a+b, 0);
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `${d.name} (${cnt}枚)`;
+      sel.appendChild(opt);
+    });
+    if(prev && sel.options[prev]) sel.value = prev;
+    else if(idx === 1 && decks.length > 1) sel.value = 1;
+  });
+}
+
+function buildDeckArray(deckObj) {
+  const arr = [];
+  Object.entries(deckObj.cards).forEach(([cid, count]) => {
+    const card = cardDB.find(c => c.id === cid);
+    if(card) {
+      for(let i=0; i<count; i++) arr.push({ ...card, uid: Math.random().toString(36).slice(2) });
+    }
+  });
+  for(let i=arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startSoloGame(passAndPlay = false) {
+  const d1 = decks[document.getElementById("deckSelect").value || 0];
+  const d2 = decks[document.getElementById("cpuDeckSelect").value || 0];
+  const deck1 = buildDeckArray(d1);
+  const deck2 = buildDeckArray(d2);
+
+  game = {
+    turn: 1,
+    active: "p1",
+    step: 0,
+    passAndPlay,
+    logs: ["対戦を開始しました（スタンダードレギュレーション）。"],
+    p1: { name: d1.name, life: 5, res: 3, soulRes: true, deck: deck1.slice(4), hand: deck1.slice(0,4), field: [], trash: [], exile: [], mulliganUsed: false },
+    p2: { name: d2.name, life: 5, res: 3, soulRes: true, deck: deck2.slice(4), hand: deck2.slice(0,4), field: [], trash: [], exile: [], mulliganUsed: false }
+  };
+  viewSide = "p1";
+  showTab("game");
+  renderGame();
+}
+
+function addLog(msg) {
+  game.logs.unshift(`[T${game.turn}] ${msg}`);
+  if(game.logs.length > 60) game.logs.pop();
+}
+
+function renderCardVisual(c) {
+  const imgUrl = cardImages[c.id];
+  if(!imgUrl) return `<div class="card-placeholder">${c.id}<br>${c.type}</div>`;
+  return `<img src="${imgUrl}" alt="${c.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><div class="card-placeholder" style="display:none;">${c.id}<br>${c.type}</div>`;
+}
+
+function renderGame() {
+  if(!game) return;
+  const selfKey = viewSide;
+  const oppKey = viewSide === "p1" ? "p2" : "p1";
+  const self = game[selfKey];
+  const opp = game[oppKey];
+
+  const sb = document.getElementById("stepBar");
+  sb.innerHTML = "";
+  STEPS.forEach((st, idx) => {
+    const isSkip = (game.turn === 1 && (idx === 1 || idx === 5 || idx === 6));
+    const el = document.createElement("button");
+    el.className = "step-item" + (game.step === idx ? " active" : "") + (isSkip ? " skip" : "");
+    el.textContent = `${idx+1}.${st}`;
+    el.onclick = () => { game.step = idx; addLog(`ステップ変更: ${st}`); renderGame(); };
+    sb.appendChild(el);
+  });
+
+  document.getElementById("turnNum").textContent = game.turn;
+  document.getElementById("turnSide").textContent = `${game.active.toUpperCase()} (${game.turn===1?'先攻':'手番'})`;
+
+  document.getElementById("oppLabel").textContent = `相手 (${oppKey.toUpperCase()})`;
+  document.getElementById("oppDeckName").textContent = opp.name;
+  document.getElementById("p2Life").textContent = opp.life;
+  document.getElementById("p2Res").textContent = opp.res;
+  document.getElementById("p2Soul").textContent = opp.soulRes ? "1" : "0";
+  document.getElementById("p2Trash").textContent = opp.trash.length;
+  document.getElementById("p2Deck").textContent = opp.deck.length;
+  document.getElementById("p2HandCount").textContent = opp.hand.length;
+
+  document.getElementById("selfLabel").textContent = `自分 (${selfKey.toUpperCase()})`;
+  document.getElementById("selfDeckName").textContent = self.name;
+  document.getElementById("p1Life").textContent = self.life;
+  document.getElementById("p1Res").textContent = self.res;
+  document.getElementById("p1Soul").textContent = self.soulRes ? "1" : "0";
+  document.getElementById("p1Trash").textContent = self.trash.length;
+  document.getElementById("p1Exile").textContent = self.exile.length;
+  document.getElementById("p1Deck").textContent = self.deck.length;
+  document.getElementById("mulliganBtn").disabled = self.mulliganUsed;
+
+  renderField(oppKey, "p2Field", false);
+  renderField(selfKey, "p1Field", true);
+  renderHand(selfKey);
+
+  document.getElementById("logBox").innerHTML = game.logs.map(l => `<div class="log-line">${l}</div>`).join("");
+}
+
+function renderField(sideKey, elemId, isSelf) {
+  const box = document.getElementById(elemId);
+  box.innerHTML = "";
+  game[sideKey].field.forEach((c, idx) => {
+    const isLv2 = (c.cores + (c.soul ? 1 : 0)) >= c.lv2c || (c.keyword === "真界放" && c.soul);
+    const bp = c.type === "スピリット" ? (isLv2 ? c.bp2 : c.bp1) : "-";
+    const lvLabel = isLv2 ? (c.keyword === "真界放" && c.soul ? "Lv2《真》" : "Lv2") : "Lv1";
+    const div = document.createElement("div");
+    div.className = `game-card attr-${c.attr} ${c.state === 1 ? 'exhausted' : c.state === 2 ? 'heavy' : ''}`;
+    div.innerHTML = `
+      <div class="card-img-box" onclick="inspectCard('${c.id}')">${renderCardVisual(c)}</div>
+      <div class="card-title" title="${c.name}">${c.name}</div>
+      <div class="card-meta"><span>${lvLabel}</span><span>コア:${c.cores}${c.soul?'+S':''}</span></div>
+      <div class="card-bp">BP: ${bp}</div>
+      ${isSelf ? `
+      <div class="card-ctrls">
+        <button onclick="cycleState('${sideKey}',${idx})">${c.state===0?'回復':c.state===1?'疲労':'重疲労'}</button>
+        <button onclick="modFieldCore('${sideKey}',${idx},1)">+1</button>
+        <button onclick="modFieldCore('${sideKey}',${idx},-1)">-1</button>
+        <button onclick="toggleFieldSoul('${sideKey}',${idx})">S</button>
+        <button class="btn-danger" onclick="destroyFieldCard('${sideKey}',${idx})">破壊</button>
+      </div>` : `
+      <div class="card-ctrls">
+        <button onclick="inspectCard('${c.id}')">詳細</button>
+        <button class="btn-danger" onclick="destroyFieldCard('${sideKey}',${idx})">破壊</button>
+      </div>`}
+    `;
+    box.appendChild(div);
+  });
+}
+
+function renderHand(sideKey) {
+  const box = document.getElementById("p1Hand");
+  box.innerHTML = "";
+  game[sideKey].hand.forEach((c, idx) => {
+    const div = document.createElement("div");
+    div.className = `game-card attr-${c.attr}`;
+    div.innerHTML = `
+      <div class="card-img-box" onclick="inspectCard('${c.id}')">${renderCardVisual(c)}</div>
+      <div class="card-title">${c.name}</div>
+      <div class="card-meta"><span>コスト:${c.cost}</span><span>軽減:赤${c.red}/白${c.white}</span></div>
+      <div class="card-ctrls">
+        <button class="btn-primary" onclick="openPlayModal('${sideKey}',${idx})">召喚/使用</button>
+        <button onclick="discardHand('${sideKey}',${idx})">破棄</button>
+      </div>
+    `;
+    box.appendChild(div);
+  });
+}
+
+function modStat(target, key, delta) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey][key] = Math.max(0, game[realKey][key] + delta);
+  addLog(`${realKey.toUpperCase()} の ${key} を ${delta>0?'+':''}${delta}`);
+  renderGame();
+}
+
+function toggleSoulReserve(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey].soulRes = !game[realKey].soulRes;
+  renderGame();
+}
+
+function drawCard(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  if(p.deck.length === 0) return alert("山札がありません");
+  p.hand.push(p.deck.shift());
+  addLog(`${realKey.toUpperCase()} が1枚ドロー`);
+  renderGame();
+}
+
+function coreStep(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  game[realKey].res += 1;
+  addLog(`${realKey.toUpperCase()} コアステップ (+1)`);
+  renderGame();
+}
+
+function refreshStep(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  p.field.forEach(c => c.state = 0);
+  addLog(`${realKey.toUpperCase()} リフレッシュステップ（全回復）`);
+  renderGame();
+}
+
+function doMulligan(target) {
+  const realKey = (target === "p1") ? viewSide : (viewSide === "p1" ? "p2" : "p1");
+  const p = game[realKey];
+  if(p.mulliganUsed) return;
+  p.deck.push(...p.hand);
+  for(let i=p.deck.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [p.deck[i], p.deck[j]] = [p.deck[j], p.deck[i]];
+  }
+  p.hand = p.deck.splice(0, 4);
+  p.mulliganUsed = true;
+  addLog(`${realKey.toUpperCase()} が手札を引き直し（マリガン）`);
+  renderGame();
+}
+
+function switchControlSide() {
+  viewSide = (viewSide === "p1") ? "p2" : "p1";
+  renderGame();
+}
+
+function endTurn() {
+  game.turn += 1;
+  game.active = (game.active === "p1") ? "p2" : "p1";
+  game.step =
